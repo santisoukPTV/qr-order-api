@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>แดชบอร์ดร้านอาหาร - QR Order</title>
+    <title>แดชบอร์ด - Win Beef Noodle X Majedo Cafe</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -27,9 +27,8 @@
     <div class="flex h-screen bg-gray-100">
         <!-- Sidebar Navigation -->
         <aside class="w-64 bg-gray-800 text-white flex-shrink-0 flex flex-col">
-            <div class="h-16 flex items-center justify-center bg-gray-900">
-                 <i class="fas fa-utensils text-2xl text-orange-500 mr-3"></i>
-                 <h1 class="text-xl font-bold">ร้านอร่อยเหาะ</h1>
+            <div class="h-16 flex items-center justify-center bg-gray-900 px-4 text-center">
+                 <h1 class="text-lg font-bold leading-tight">Win Beef Noodle X Majedo Cafe</h1>
             </div>
             <nav class="flex-1 px-2 py-4 space-y-2">
                 <a href="#dashboard" class="nav-link flex items-center px-4 py-2 rounded-md bg-gray-700"><i class="fas fa-tachometer-alt w-6"></i><span>แดชบอร์ดออเดอร์</span></a>
@@ -93,7 +92,7 @@
                     <div><label class="block text-sm font-medium">คำอธิบาย (ไทย)</label><textarea id="desc_th" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></textarea></div>
                     <div><label class="block text-sm font-medium">คำอธิบาย (อังกฤษ)</label><textarea id="desc_en" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></textarea></div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div><label class="block text-sm font-medium">ราคา (บาท)</label><input type="number" id="price" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required min="0"></div>
+                        <div><label class="block text-sm font-medium">ราคา (กีบ)</label><input type="number" id="price" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required min="0"></div>
                         <div><label class="block text-sm font-medium">หมวดหมู่</label><select id="category" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required></select></div>
                     </div>
                     <div>
@@ -127,22 +126,22 @@
 
     <script>
     // --- STATE & CONFIG ---
-    const API_BASE_URL = 'https://qr-order-api.onrender.com'; // URL ของ API Server
+    const API_BASE_URL = 'https://qr-order-api.onrender.com'; // URL ของ API Server จริง
     let mockCategories = [
         { id: 'main', name_th: 'อาหารจานหลัก' }, { id: 'appetizer', name_th: 'ของทานเล่น' },
         { id: 'dessert', name_th: 'ของหวาน' }, { id: 'drink', name_th: 'เครื่องดื่ม' },
     ];
-    // ข้อมูลเหล่านี้จะถูกดึงมาจาก API แทน
-    // let mockMenuItems = []; 
     let mockUsers = [
         { id: 1, name: 'สมชาย ใจดี', role: 'เจ้าของร้าน', email: 'somchai.j@example.com' },
         { id: 2, name: 'สมหญิง รักงาน', role: 'พนักงาน', email: 'somyimg.r@example.com' },
+        { id: 3, name: 'มานะ บากบั่น', role: 'พนักงาน', email: 'mana.b@example.com' },
     ];
     let orders = [];
     let orderIdCounter = 1;
     let isMuted = true;
     let isToneStarted = false;
     const synth = new Tone.Synth().toDestination();
+    const currencyFormatter = new Intl.NumberFormat('lo-LA', { style: 'currency', currency: 'LAK', minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
     document.addEventListener('DOMContentLoaded', () => {
         const pageContainer = {
@@ -181,6 +180,7 @@
             document.getElementById('page-title').textContent = targetTitle;
 
             // Render content for the specific page
+            if (pageName === 'dashboard') setupOrderDashboard();
             if (pageName === 'menu') renderMenuPage();
             if (pageName === 'reports') renderReportsPage();
             if (pageName === 'settings') renderSettingsPage();
@@ -188,10 +188,16 @@
         }
         window.addEventListener('hashchange', () => showPage(window.location.hash));
         
-        // --- ORDER DASHBOARD LOGIC (Simplified for this example) ---
+        // --- ORDER DASHBOARD LOGIC ---
         function setupOrderDashboard() {
-            pageContainer.dashboard.innerHTML = `<div class="p-6 text-center text-gray-500">ส่วนแดชบอร์ดออเดอร์จะทำงานที่นี่...</div>`;
-            // The full order dashboard logic would connect to a real-time service like WebSockets
+            pageContainer.dashboard.innerHTML = `
+                <div id="col-new" class="bg-white rounded-lg shadow-sm flex flex-col h-[85vh]"><div class="p-4 border-b rounded-t-lg bg-red-100"><h2 class="text-lg font-bold text-red-700 flex items-center"><i class="fas fa-receipt mr-2"></i>ออเดอร์ใหม่ (<span class="order-count">0</span>)</h2></div><div class="order-column-content flex-1 p-4 space-y-4 overflow-y-auto"></div></div>
+                <div id="col-cooking" class="bg-white rounded-lg shadow-sm flex flex-col h-[85vh]"><div class="p-4 border-b rounded-t-lg bg-yellow-100"><h2 class="text-lg font-bold text-yellow-700 flex items-center"><i class="fas fa-fire-burner mr-2"></i>กำลังทำ (<span class="order-count">0</span>)</h2></div><div class="order-column-content flex-1 p-4 space-y-4 overflow-y-auto"></div></div>
+                <div id="col-ready" class="bg-white rounded-lg shadow-sm flex flex-col h-[85vh]"><div class="p-4 border-b rounded-t-lg bg-blue-100"><h2 class="text-lg font-bold text-blue-700 flex items-center"><i class="fas fa-bell-concierge mr-2"></i>พร้อมเสิร์ฟ (<span class="order-count">0</span>)</h2></div><div class="order-column-content flex-1 p-4 space-y-4 overflow-y-auto"></div></div>
+                <div id="col-completed" class="bg-white rounded-lg shadow-sm flex flex-col h-[85vh]"><div class="p-4 border-b rounded-t-lg bg-green-100"><h2 class="text-lg font-bold text-green-700 flex items-center"><i class="fas fa-check-circle mr-2"></i>เสร็จสิ้น (<span class="order-count">0</span>)</h2></div><div class="order-column-content flex-1 p-4 space-y-4 overflow-y-auto"></div></div>
+            `;
+            // NOTE: This part should ideally connect to a real-time service (like Firestore's onSnapshot listener)
+            // For now, it remains a mock-up.
         }
 
         // --- MENU MANAGEMENT LOGIC (Connected to API) ---
@@ -205,6 +211,7 @@
             
             try {
                 const response = await fetch(`${API_BASE_URL}/api/menu`);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 const menuItems = await response.json();
 
                 const menuTableBody = pageContainer.menu.querySelector('#menu-table-body');
@@ -218,7 +225,7 @@
                         <td class="px-6 py-4"><img src="${item.image}" alt="${item.name_th}" class="w-12 h-12 rounded-md object-cover"></td>
                         <td class="px-6 py-4"><div class="text-sm font-medium text-gray-900">${item.name_th}</div><div class="text-sm text-gray-500">${item.name_en}</div></td>
                         <td class="px-6 py-4"><span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">${category ? category.name_th : 'ไม่มี'}</span></td>
-                        <td class="px-6 py-4 text-sm text-gray-800 font-semibold">฿${item.price.toFixed(2)}</td>
+                        <td class="px-6 py-4 text-sm text-gray-800 font-semibold">${currencyFormatter.format(item.price)}</td>
                         <td class="px-6 py-4 text-right text-sm font-medium">
                             <button class="edit-btn text-indigo-600 hover:text-indigo-900" data-id="${item.id}">แก้ไข</button>
                             <button class="delete-btn text-red-600 hover:text-red-900 ml-4" data-id="${item.id}">ลบ</button>
@@ -243,10 +250,16 @@
             
             let item = null;
             if (id) {
-                // Fetch the specific item from API to ensure we have the latest data
-                const response = await fetch(`${API_BASE_URL}/api/menu`);
-                const menuItems = await response.json();
-                item = menuItems.find(i => i.id == id);
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/menu`);
+                    if (!response.ok) throw new Error('Failed to fetch menu for editing');
+                    const menuItems = await response.json();
+                    item = menuItems.find(i => i.id == id);
+                } catch(error) {
+                    console.error(error);
+                    alert('ไม่สามารถโหลดข้อมูลสำหรับแก้ไขได้');
+                    return;
+                }
             }
 
             document.getElementById('modal-title').textContent = item ? 'แก้ไขรายการอาหาร' : 'เพิ่มรายการอาหารใหม่';
@@ -325,10 +338,48 @@
         }
         document.getElementById('confirm-cancel-btn').addEventListener('click', () => closeModal(confirmModal));
 
-        // --- REPORTS, SETTINGS, USERS PAGE (Static for now) ---
-        function renderReportsPage() { pageContainer.reports.innerHTML = `<div class="p-6">หน้ารายงาน...</div>`; }
-        function renderSettingsPage() { pageContainer.settings.innerHTML = `<div class="p-6">หน้าตั้งค่าร้าน...</div>`; }
-        function renderUsersPage() { pageContainer.users.innerHTML = `<div class="p-6">หน้าจัดการพนักงาน...</div>`; }
+        // --- REPORTS PAGE LOGIC ---
+        function renderReportsPage() {
+            pageContainer.reports.innerHTML = `
+                <h3 class="text-2xl font-bold mb-6">รายงานยอดขาย</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                    <div class="bg-white p-6 rounded-lg shadow-md"><h4 class="text-gray-500">ยอดขายวันนี้</h4><p class="text-3xl font-bold mt-2">${currencyFormatter.format(3137500)}</p></div>
+                    <div class="bg-white p-6 rounded-lg shadow-md"><h4 class="text-gray-500">ออเดอร์วันนี้</h4><p class="text-3xl font-bold mt-2">85</p></div>
+                    <div class="bg-white p-6 rounded-lg shadow-md"><h4 class="text-gray-500">ลูกค้าใหม่</h4><p class="text-3xl font-bold mt-2">12</p></div>
+                    <div class="bg-white p-6 rounded-lg shadow-md"><h4 class="text-gray-500">ยอดขายเฉลี่ย/โต๊ะ</h4><p class="text-3xl font-bold mt-2">${currencyFormatter.format(112687)}</p></div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md"><canvas id="salesChart"></canvas></div>`;
+            new Chart(document.getElementById('salesChart'), {
+                type: 'bar',
+                data: {
+                    labels: ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัส', 'ศุกร์', 'เสาร์', 'อาทิตย์'],
+                    datasets: [{ label: 'ยอดขาย (กีบ)', data: [2125000, 2300000, 2762500, 1950000, 3350000, 4625000, 4050000], backgroundColor: 'rgba(249, 115, 22, 0.6)', borderColor: 'rgba(249, 115, 22, 1)', borderWidth: 1 }]
+                },
+                options: { scales: { y: { beginAtZero: true, ticks: { callback: value => currencyFormatter.format(value) } } }, responsive: true }
+            });
+        }
+
+        // --- SETTINGS PAGE LOGIC ---
+        function renderSettingsPage() {
+            pageContainer.settings.innerHTML = `
+                <h3 class="text-2xl font-bold mb-6">ตั้งค่าร้านค้า</h3>
+                <div class="bg-white p-6 rounded-lg shadow-md max-w-2xl mx-auto">
+                    <div class="space-y-4">
+                        <div><label class="block text-sm font-medium text-gray-700">ชื่อร้าน</label><input type="text" value="Win Beef Noodle X Majedo Cafe" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
+                        <div><label class="block text-sm font-medium text-gray-700">จำนวนโต๊ะ</label><input type="number" value="20" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
+                        <div><label class="block text-sm font-medium text-gray-700">อัตราภาษี (%)</label><input type="number" value="7" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
+                        <div><label class="block text-sm font-medium text-gray-700">ค่าบริการ (%)</label><input type="number" value="0" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
+                    </div>
+                    <div class="mt-6 text-right"><button class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700">บันทึกการเปลี่ยนแปลง</button></div>
+                </div>`;
+        }
+        
+        // --- USERS PAGE LOGIC ---
+        function renderUsersPage() {
+            pageContainer.users.innerHTML = `
+                <div class="flex justify-between items-center mb-6"><h3 class="text-2xl font-bold">จัดการพนักงาน</h3><button class="bg-orange-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-orange-600 flex items-center"><i class="fas fa-plus mr-2"></i>เพิ่มพนักงาน</button></div>
+                <div class="bg-white shadow-md rounded-lg overflow-x-auto"><table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ชื่อ-สกุล</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">อีเมล</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ตำแหน่ง</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">จัดการ</th></tr></thead><tbody class="bg-white divide-y divide-gray-200">${mockUsers.map(user => `<tr><td class="px-6 py-4">${user.name}</td><td class="px-6 py-4">${user.email}</td><td class="px-6 py-4"><span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.role === 'เจ้าของร้าน' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}">${user.role}</span></td><td class="px-6 py-4 text-right"><button class="text-indigo-600 hover:text-indigo-900">แก้ไข</button><button class="text-red-600 hover:text-red-900 ml-4">ลบ</button></td></tr>`).join('')}</tbody></table></div>`;
+        }
 
         // --- SOUND & INITIALIZATION ---
         document.getElementById('mute-btn').addEventListener('click', async () => {
@@ -341,7 +392,6 @@
         });
         
         // Initial Load
-        setupOrderDashboard();
         showPage(window.location.hash || '#dashboard');
     });
     </script>

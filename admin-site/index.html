@@ -8,11 +8,15 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- เพิ่มฟอนต์ Phetsarath OT และ Kanit -->
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Phetsarath+OT:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: 'Kanit', sans-serif; }
+        /* ตั้งค่าฟอนต์หลักให้เป็น Phetsarath OT สำหรับภาษาลาว และใช้ Kanit สำหรับภาษาไทย */
+        body, h1, h2, h3, h4, h5, h6, button, input, select, textarea, span, p, div, a, th, td { 
+            font-family: 'Phetsarath OT', 'Kanit', sans-serif; 
+        }
         .main-content::-webkit-scrollbar, .order-column-content::-webkit-scrollbar, .modal-body::-webkit-scrollbar { width: 8px; }
         .main-content::-webkit-scrollbar-track, .order-column-content::-webkit-scrollbar-track, .modal-body::-webkit-scrollbar-track { background: #f1f1f1; }
         .main-content::-webkit-scrollbar-thumb, .order-column-content::-webkit-scrollbar-thumb, .modal-body::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
@@ -25,7 +29,6 @@
 <body class="bg-gray-100">
 
     <div class="flex h-screen bg-gray-100">
-        <!-- Sidebar Navigation -->
         <aside class="w-64 bg-gray-800 text-white flex-shrink-0 flex flex-col">
             <div class="h-16 flex items-center justify-center bg-gray-900 px-4 text-center">
                  <h1 class="text-lg font-bold leading-tight">Win Beef Noodle X Majedo Cafe</h1>
@@ -45,11 +48,10 @@
                         <p class="text-xs text-gray-400">เจ้าของร้าน</p>
                     </div>
                 </div>
-                <button class="w-full flex items-center justify-center mt-2 px-4 py-2 rounded-md text-sm text-red-300 hover:bg-red-500 hover:text-white transition-colors"><i class="fas fa-sign-out-alt w-6"></i><span>ออกจากระบบ</span></button>
+                <button id="logout-btn" class="w-full flex items-center justify-center mt-2 px-4 py-2 rounded-md text-sm text-red-300 hover:bg-red-500 hover:text-white transition-colors"><i class="fas fa-sign-out-alt w-6"></i><span>ออกจากระบบ</span></button>
             </div>
         </aside>
 
-        <!-- Main Content Area -->
         <div class="flex-1 flex flex-col overflow-hidden">
             <header class="bg-white shadow-sm p-4 flex justify-between items-center flex-shrink-0">
                 <h2 id="page-title" class="text-2xl font-bold text-gray-800">แดชบอร์ดออเดอร์</h2>
@@ -57,25 +59,19 @@
             </header>
             
             <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 main-content">
-                <!-- Page: Order Dashboard -->
                 <div id="page-dashboard" class="page p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"></div>
 
-                <!-- Page: Menu Management -->
                 <div id="page-menu" class="page hidden p-6"></div>
 
-                <!-- Page: Reports -->
                 <div id="page-reports" class="page hidden p-6"></div>
 
-                <!-- Page: Settings -->
                 <div id="page-settings" class="page hidden p-6"></div>
 
-                <!-- Page: User Management -->
                 <div id="page-users" class="page hidden p-6"></div>
             </main>
         </div>
     </div>
     
-    <!-- Modal for Add/Edit Menu Item -->
     <div id="menu-item-modal" class="modal-overlay hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 opacity-0">
         <div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-2xl transform -translate-y-full opacity-0">
             <div class="p-6 border-b flex justify-between items-center">
@@ -86,11 +82,10 @@
                 <div class="p-6 space-y-4 max-h-[70vh] overflow-y-auto modal-body">
                     <input type="hidden" id="menu-item-id">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div><label class="block text-sm font-medium">ชื่ออาหาร (ไทย)</label><input type="text" id="name_th" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required></div>
+                        <div><label class="block text-sm font-medium">ชื่ออาหาร (ลาว/ไทย)</label><input type="text" id="name_th" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required></div>
                         <div><label class="block text-sm font-medium">ชื่ออาหาร (อังกฤษ)</label><input type="text" id="name_en" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required></div>
                     </div>
-                    <div><label class="block text-sm font-medium">คำอธิบาย (ไทย)</label><textarea id="desc_th" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></textarea></div>
-                    <div><label class="block text-sm font-medium">คำอธิบาย (อังกฤษ)</label><textarea id="desc_en" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></textarea></div>
+                    <div><label class="block text-sm font-medium">คำอธิบาย</label><textarea id="desc_th" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></textarea></div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div><label class="block text-sm font-medium">ราคา (กีบ)</label><input type="number" id="price" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required min="0"></div>
                         <div><label class="block text-sm font-medium">หมวดหมู่</label><select id="category" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required></select></div>
@@ -107,8 +102,28 @@
             </form>
         </div>
     </div>
+
+    <div id="user-modal" class="modal-overlay hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 opacity-0">
+        <div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-lg transform -translate-y-full opacity-0">
+            <div class="p-6 border-b flex justify-between items-center">
+                <h3 id="user-modal-title" class="text-2xl font-bold">เพิ่มพนักงานใหม่</h3>
+                <button class="close-user-modal-btn text-gray-400 hover:text-gray-700">&times;</button>
+            </div>
+            <form id="user-form">
+                <div class="p-6 space-y-4 modal-body">
+                    <input type="hidden" id="user-id">
+                    <div><label class="block text-sm font-medium">ชื่อ-สกุล</label><input type="text" id="user-name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required></div>
+                    <div><label class="block text-sm font-medium">อีเมล</label><input type="email" id="user-email" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required></div>
+                    <div><label class="block text-sm font-medium">ตำแหน่ง</label><select id="user-role" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required><option value="พนักงาน">พนักงาน</option><option value="เจ้าของร้าน">เจ้าของร้าน</option></select></div>
+                </div>
+                <div class="p-4 bg-gray-50 flex justify-end space-x-3">
+                    <button type="button" class="close-user-modal-btn bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg hover:bg-gray-300">ยกเลิก</button>
+                    <button type="submit" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700">บันทึก</button>
+                </div>
+            </form>
+        </div>
+    </div>
     
-    <!-- Confirmation Modal -->
     <div id="confirm-modal" class="modal-overlay hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 opacity-0">
         <div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-sm transform -translate-y-full opacity-0">
             <div class="p-6 text-center">
@@ -128,15 +143,20 @@
     // --- STATE & CONFIG ---
     const API_BASE_URL = 'https://qr-order-api.onrender.com'; // URL ของ API Server จริง
     let mockCategories = [
-        { id: 'main', name_th: 'อาหารจานหลัก' }, { id: 'appetizer', name_th: 'ของทานเล่น' },
-        { id: 'dessert', name_th: 'ของหวาน' }, { id: 'drink', name_th: 'เครื่องดื่ม' },
+        { id: 'drink', name_th: 'เครื่องดื่ม' },
+        { id: 'majedo_drink', name_th: 'เครื่องดื่ม Majedo' },
+        { id: 'noodle', name_th: 'เส้น' },
+        { id: 'dessert', name_th: 'ของหวาน' },
+        { id: 'main', name_th: 'อาหารจานหลัก' },
+        { id: 'appetizer', name_th: 'อาหารทานเล่น' },
+        { id: 'others', name_th: 'อื่นๆ' },
     ];
     let mockUsers = [
         { id: 1, name: 'สมชาย ใจดี', role: 'เจ้าของร้าน', email: 'somchai.j@example.com' },
         { id: 2, name: 'สมหญิง รักงาน', role: 'พนักงาน', email: 'somyimg.r@example.com' },
-        { id: 3, name: 'มานะ บากบั่น', role: 'พนักงาน', email: 'mana.b@example.com' },
     ];
-    let orders = [];
+    let userIdCounter = 3;
+    let orders = []; // เริ่มต้นโดยไม่มีออเดอร์จำลอง
     let orderIdCounter = 1;
     let isMuted = true;
     let isToneStarted = false;
@@ -179,7 +199,6 @@
             document.querySelector(`a[href="#${pageName}"]`)?.classList.add('bg-gray-700');
             document.getElementById('page-title').textContent = targetTitle;
 
-            // Render content for the specific page
             if (pageName === 'dashboard') setupOrderDashboard();
             if (pageName === 'menu') renderMenuPage();
             if (pageName === 'reports') renderReportsPage();
@@ -196,11 +215,79 @@
                 <div id="col-ready" class="bg-white rounded-lg shadow-sm flex flex-col h-[85vh]"><div class="p-4 border-b rounded-t-lg bg-blue-100"><h2 class="text-lg font-bold text-blue-700 flex items-center"><i class="fas fa-bell-concierge mr-2"></i>พร้อมเสิร์ฟ (<span class="order-count">0</span>)</h2></div><div class="order-column-content flex-1 p-4 space-y-4 overflow-y-auto"></div></div>
                 <div id="col-completed" class="bg-white rounded-lg shadow-sm flex flex-col h-[85vh]"><div class="p-4 border-b rounded-t-lg bg-green-100"><h2 class="text-lg font-bold text-green-700 flex items-center"><i class="fas fa-check-circle mr-2"></i>เสร็จสิ้น (<span class="order-count">0</span>)</h2></div><div class="order-column-content flex-1 p-4 space-y-4 overflow-y-auto"></div></div>
             `;
-            // NOTE: This part should ideally connect to a real-time service (like Firestore's onSnapshot listener)
-            // For now, it remains a mock-up.
+            
+            renderOrderDashboard();
+        }
+        
+        function renderOrderDashboard() {
+            document.querySelectorAll('.order-column-content').forEach(col => col.innerHTML = '');
+            const statuses = ['new', 'cooking', 'ready', 'completed'];
+            statuses.forEach(status => {
+                const col = document.getElementById(`col-${status}`);
+                const filteredOrders = orders.filter(o => o.status === status);
+                col.querySelector('.order-count').textContent = filteredOrders.length;
+                filteredOrders.sort((a,b) => b.time - a.time).forEach(order => col.querySelector('.order-column-content').prepend(renderOrderCard(order)));
+            });
+            document.querySelectorAll('.action-btn').forEach(btn => btn.addEventListener('click', handleActionClick));
         }
 
-        // --- MENU MANAGEMENT LOGIC (Connected to API) ---
+        function handleActionClick(e) {
+            const orderId = parseInt(e.target.dataset.orderId);
+            const action = e.target.dataset.action;
+            const order = orders.find(o => o.id === orderId);
+
+            if (!order) return;
+
+            switch (action) {
+                case 'cook':
+                    order.status = 'cooking';
+                    break;
+                case 'ready':
+                    order.status = 'ready';
+                    break;
+                case 'complete':
+                    order.status = 'completed';
+                    break;
+                case 'cancel':
+                    showConfirmModal(`คุณแน่ใจหรือไม่ว่าต้องการยกเลิกออเดอร์โต๊ะ ${order.table}?`, () => {
+                        orders = orders.filter(o => o.id !== orderId);
+                        renderOrderDashboard();
+                    });
+                    return; // Return to avoid re-rendering immediately
+                case 'archive':
+                    orders = orders.filter(o => o.id !== orderId);
+                    break;
+            }
+            renderOrderDashboard();
+        }
+
+        function renderOrderCard(order) {
+            const card = document.createElement('div');
+            card.className = 'order-card bg-gray-50 border border-gray-200 rounded-lg p-4 shadow-md';
+            if (order.status === 'new') card.classList.add('new-order-card', 'border-red-400');
+            
+            let actionButtonHtml = '';
+            if (order.status === 'new') {
+                actionButtonHtml = `<button data-order-id="${order.id}" data-action="cook" class="action-btn w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg">เริ่มทำอาหาร</button>`;
+            } else if (order.status === 'cooking') {
+                actionButtonHtml = `<button data-order-id="${order.id}" data-action="ready" class="action-btn w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">พร้อมเสิร์ฟ</button>`;
+            } else if (order.status === 'ready') {
+                actionButtonHtml = `<button data-order-id="${order.id}" data-action="complete" class="action-btn w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">เสิร์ฟแล้ว</button>`;
+            } else {
+                actionButtonHtml = `<button data-order-id="${order.id}" data-action="archive" class="action-btn w-full bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg">เก็บออเดอร์</button>`;
+            }
+
+            // Add cancel button for relevant statuses
+            let cancelButtonHtml = '';
+            if (order.status === 'new' || order.status === 'cooking') {
+                 cancelButtonHtml = `<button data-order-id="${order.id}" data-action="cancel" class="action-btn mt-2 w-full bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg">ยกเลิก</button>`
+            }
+
+            card.innerHTML = `<div class="flex justify-between items-center mb-2"><span class="font-bold text-lg">โต๊ะ ${order.table}</span><span class="text-sm text-gray-500">${order.time.toLocaleTimeString('th-TH')}</span></div><div class="border-t my-2 py-2"><ul class="text-sm space-y-1">${order.items.map(i => `<li>${i.name_th} <span class="font-semibold">x${i.quantity}</span></li>`).join('')}</ul></div><div class="flex justify-between items-center mt-3"><span class="font-bold">ยอดรวม</span><span class="font-bold text-xl text-green-700">${currencyFormatter.format(order.total)}</span></div><div class="mt-4">${actionButtonHtml}${cancelButtonHtml}</div>`;
+            return card;
+        }
+
+        // --- MENU MANAGEMENT LOGIC ---
         async function renderMenuPage() {
             pageContainer.menu.innerHTML = `
                 <div class="flex justify-between items-center mb-6">
@@ -217,9 +304,9 @@
                 const menuTableBody = pageContainer.menu.querySelector('#menu-table-body');
                 menuTableBody.innerHTML = '';
                 if (menuItems.length === 0) {
-                    menuTableBody.innerHTML = `<tr><td colspan="5" class="text-center p-6 text-gray-500">ยังไม่มีรายการอาหาร</td></tr>`;
+                    menuTableBody.innerHTML = `<tr><td colspan="5" class="text-center p-6 text-gray-500">กำลังโหลดข้อมูลเมนู... (หากนานเกินไป กรุณาลบ Collection 'menuItems' ใน Firestore แล้วรอเซิร์ฟเวอร์รีสตาร์ท)</td></tr>`;
                 }
-                menuItems.forEach(item => {
+                menuItems.sort((a, b) => a.name_th.localeCompare(b.name_th, 'lo')).forEach(item => {
                     const category = mockCategories.find(c => c.id === item.category);
                     menuTableBody.innerHTML += `<tr>
                         <td class="px-6 py-4"><img src="${item.image}" alt="${item.name_th}" class="w-12 h-12 rounded-md object-cover"></td>
@@ -231,13 +318,12 @@
                             <button class="delete-btn text-red-600 hover:text-red-900 ml-4" data-id="${item.id}">ลบ</button>
                         </td></tr>`;
                 });
-                // Attach event listeners
                 pageContainer.menu.querySelector('#add-menu-item-btn').addEventListener('click', () => handleEditMenuItem());
                 pageContainer.menu.querySelectorAll('.edit-btn').forEach(b => b.addEventListener('click', (e) => handleEditMenuItem(e.target.dataset.id)));
                 pageContainer.menu.querySelectorAll('.delete-btn').forEach(b => b.addEventListener('click', (e) => handleDeleteMenuItem(e.target.dataset.id)));
             } catch (error) {
                 console.error('Failed to fetch menu:', error);
-                pageContainer.menu.querySelector('#menu-table-body').innerHTML = `<tr><td colspan="5" class="text-center p-6 text-red-500">ไม่สามารถโหลดข้อมูลเมนูได้ กรุณาตรวจสอบว่า API Server ทำงานอยู่หรือไม่</td></tr>`;
+                pageContainer.menu.querySelector('#menu-table-body').innerHTML = `<tr><td colspan="5" class="text-center p-6 text-red-500">ไม่สามารถโหลดข้อมูลเมนูได้</td></tr>`;
             }
         }
         const menuItemModal = document.getElementById('menu-item-modal');
@@ -247,7 +333,6 @@
         async function handleEditMenuItem(id = null) {
             menuItemForm.reset();
             document.getElementById('menu-item-id').value = '';
-            
             let item = null;
             if (id) {
                 try {
@@ -261,14 +346,12 @@
                     return;
                 }
             }
-
             document.getElementById('modal-title').textContent = item ? 'แก้ไขรายการอาหาร' : 'เพิ่มรายการอาหารใหม่';
             if (item) {
                 document.getElementById('menu-item-id').value = item.id;
                 document.getElementById('name_th').value = item.name_th;
                 document.getElementById('name_en').value = item.name_en;
                 document.getElementById('desc_th').value = item.desc_th || '';
-                document.getElementById('desc_en').value = item.desc_en || '';
                 document.getElementById('price').value = item.price;
                 document.getElementById('category').value = item.category;
                 document.getElementById('image_url').value = item.image;
@@ -284,22 +367,14 @@
                 name_th: document.getElementById('name_th').value,
                 name_en: document.getElementById('name_en').value,
                 desc_th: document.getElementById('desc_th').value,
-                desc_en: document.getElementById('desc_en').value,
                 price: parseFloat(document.getElementById('price').value),
                 image: document.getElementById('image_url').value || 'https://placehold.co/100x100/cccccc/ffffff?text=No+Image',
             };
-            
             const url = id ? `${API_BASE_URL}/api/menu/${id}` : `${API_BASE_URL}/api/menu`;
             const method = id ? 'PUT' : 'POST';
-
             try {
-                const response = await fetch(url, {
-                    method: method,
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(newItemData)
-                });
+                const response = await fetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newItemData) });
                 if (!response.ok) throw new Error('Failed to save item');
-                
                 await renderMenuPage();
                 closeModal(menuItemModal);
             } catch (error) {
@@ -309,7 +384,10 @@
         });
 
         async function handleDeleteMenuItem(id) {
-            showConfirmModal(`คุณแน่ใจหรือไม่ว่าต้องการลบรายการนี้?`, async () => {
+            const response = await fetch(`${API_BASE_URL}/api/menu`);
+            const menuItems = await response.json();
+            const item = menuItems.find(i => i.id == id);
+            showConfirmModal(`คุณแน่ใจหรือไม่ว่าต้องการลบ "${item.name_th}"?`, async () => {
                 try {
                     const response = await fetch(`${API_BASE_URL}/api/menu/${id}`, { method: 'DELETE' });
                     if (!response.ok) throw new Error('Failed to delete item');
@@ -341,7 +419,22 @@
         // --- REPORTS PAGE LOGIC ---
         function renderReportsPage() {
             pageContainer.reports.innerHTML = `
-                <h3 class="text-2xl font-bold mb-6">รายงานยอดขาย</h3>
+                <div class="flex flex-wrap items-center justify-between mb-6 gap-4">
+                    <h3 class="text-2xl font-bold">รายงานยอดขาย</h3>
+                    <div class="flex items-center bg-gray-200 rounded-lg p-1 text-sm">
+                        <button class="time-filter-btn px-4 py-1.5 font-semibold text-white bg-gray-800 rounded-md" data-period="today">วันนี้</button>
+                        <button class="time-filter-btn px-4 py-1.5 font-semibold text-gray-600 hover:bg-gray-300 rounded-md" data-period="yesterday">เมื่อวาน</button>
+                        <button class="time-filter-btn px-4 py-1.5 font-semibold text-gray-600 hover:bg-gray-300 rounded-md" data-period="this_week">สัปดาห์นี้</button>
+                        <button class="time-filter-btn px-4 py-1.5 font-semibold text-gray-600 hover:bg-gray-300 rounded-md" data-period="this_month">เดือนนี้</button>
+                        <button class="time-filter-btn px-4 py-1.5 font-semibold text-gray-600 hover:bg-gray-300 rounded-md" data-period="custom">เลือกช่วงเวลา</button>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button class="p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600"><i class="fas fa-sync-alt"></i></button>
+                        <button class="px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 flex items-center gap-2">
+                            <i class="fas fa-download"></i> Download สรุป
+                        </button>
+                    </div>
+                </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
                     <div class="bg-white p-6 rounded-lg shadow-md"><h4 class="text-gray-500">ยอดขายวันนี้</h4><p class="text-3xl font-bold mt-2">${currencyFormatter.format(3137500)}</p></div>
                     <div class="bg-white p-6 rounded-lg shadow-md"><h4 class="text-gray-500">ออเดอร์วันนี้</h4><p class="text-3xl font-bold mt-2">85</p></div>
@@ -349,6 +442,19 @@
                     <div class="bg-white p-6 rounded-lg shadow-md"><h4 class="text-gray-500">ยอดขายเฉลี่ย/โต๊ะ</h4><p class="text-3xl font-bold mt-2">${currencyFormatter.format(112687)}</p></div>
                 </div>
                 <div class="bg-white p-6 rounded-lg shadow-md"><canvas id="salesChart"></canvas></div>`;
+            
+            const timeFilterBtns = pageContainer.reports.querySelectorAll('.time-filter-btn');
+            timeFilterBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    timeFilterBtns.forEach(b => {
+                        b.classList.remove('bg-gray-800', 'text-white');
+                        b.classList.add('text-gray-600', 'hover:bg-gray-300');
+                    });
+                    btn.classList.add('bg-gray-800', 'text-white');
+                    btn.classList.remove('text-gray-600', 'hover:bg-gray-300');
+                });
+            });
+
             new Chart(document.getElementById('salesChart'), {
                 type: 'bar',
                 data: {
@@ -365,23 +471,96 @@
                 <h3 class="text-2xl font-bold mb-6">ตั้งค่าร้านค้า</h3>
                 <div class="bg-white p-6 rounded-lg shadow-md max-w-2xl mx-auto">
                     <div class="space-y-4">
-                        <div><label class="block text-sm font-medium text-gray-700">ชื่อร้าน</label><input type="text" value="Win Beef Noodle X Majedo Cafe" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
+                        <div><label class="block text-sm font-medium text-gray-700">ชื่อร้าน</label><input type="text" id="setting-store-name" value="Win Beef Noodle X Majedo Cafe" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
+                        <div><label class="block text-sm font-medium text-gray-700">สกุลเงิน</label><input type="text" value="LAK" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100" readonly></div>
                         <div><label class="block text-sm font-medium text-gray-700">จำนวนโต๊ะ</label><input type="number" value="20" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
                         <div><label class="block text-sm font-medium text-gray-700">อัตราภาษี (%)</label><input type="number" value="7" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
-                        <div><label class="block text-sm font-medium text-gray-700">ค่าบริการ (%)</label><input type="number" value="0" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
                     </div>
-                    <div class="mt-6 text-right"><button class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700">บันทึกการเปลี่ยนแปลง</button></div>
+                    <div class="mt-6 text-right"><button id="save-settings-btn" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700">บันทึกการเปลี่ยนแปลง</button></div>
                 </div>`;
+            document.getElementById('save-settings-btn').addEventListener('click', () => {
+                alert('บันทึกการตั้งค่าแล้ว (จำลอง)');
+            });
         }
         
         // --- USERS PAGE LOGIC ---
+        const userModal = document.getElementById('user-modal');
+        const userForm = document.getElementById('user-form');
+
         function renderUsersPage() {
             pageContainer.users.innerHTML = `
-                <div class="flex justify-between items-center mb-6"><h3 class="text-2xl font-bold">จัดการพนักงาน</h3><button class="bg-orange-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-orange-600 flex items-center"><i class="fas fa-plus mr-2"></i>เพิ่มพนักงาน</button></div>
-                <div class="bg-white shadow-md rounded-lg overflow-x-auto"><table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ชื่อ-สกุล</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">อีเมล</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ตำแหน่ง</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">จัดการ</th></tr></thead><tbody class="bg-white divide-y divide-gray-200">${mockUsers.map(user => `<tr><td class="px-6 py-4">${user.name}</td><td class="px-6 py-4">${user.email}</td><td class="px-6 py-4"><span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.role === 'เจ้าของร้าน' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}">${user.role}</span></td><td class="px-6 py-4 text-right"><button class="text-indigo-600 hover:text-indigo-900">แก้ไข</button><button class="text-red-600 hover:text-red-900 ml-4">ลบ</button></td></tr>`).join('')}</tbody></table></div>`;
+                <div class="flex justify-between items-center mb-6"><h3 class="text-2xl font-bold">จัดการพนักงาน</h3><button id="add-user-btn" class="bg-orange-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-orange-600 flex items-center"><i class="fas fa-plus mr-2"></i>เพิ่มพนักงาน</button></div>
+                <div class="bg-white shadow-md rounded-lg overflow-x-auto"><table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ชื่อ-สกุล</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">อีเมล</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ตำแหน่ง</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">จัดการ</th></tr></thead><tbody id="user-table-body" class="bg-white divide-y divide-gray-200"></tbody></table></div>`;
+            
+            const userTableBody = pageContainer.users.querySelector('#user-table-body');
+            userTableBody.innerHTML = mockUsers.map(user => `<tr><td class="px-6 py-4">${user.name}</td><td class="px-6 py-4">${user.email}</td><td class="px-6 py-4"><span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.role === 'เจ้าของร้าน' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}">${user.role}</span></td><td class="px-6 py-4 text-right"><button class="user-edit-btn text-indigo-600 hover:text-indigo-900" data-id="${user.id}">แก้ไข</button><button class="user-delete-btn text-red-600 hover:text-red-900 ml-4" data-id="${user.id}">ลบ</button></td></tr>`).join('');
+
+            pageContainer.users.querySelector('#add-user-btn').addEventListener('click', () => handleEditUser());
+            pageContainer.users.querySelectorAll('.user-edit-btn').forEach(b => b.addEventListener('click', e => handleEditUser(e.target.dataset.id)));
+            pageContainer.users.querySelectorAll('.user-delete-btn').forEach(b => b.addEventListener('click', e => handleDeleteUser(e.target.dataset.id)));
         }
 
+        function handleEditUser(id = null) {
+            userForm.reset();
+            document.getElementById('user-id').value = '';
+            const user = id ? mockUsers.find(u => u.id == id) : null;
+            document.getElementById('user-modal-title').textContent = user ? 'แก้ไขข้อมูลพนักงาน' : 'เพิ่มพนักงานใหม่';
+            if (user) {
+                document.getElementById('user-id').value = user.id;
+                document.getElementById('user-name').value = user.name;
+                document.getElementById('user-email').value = user.email;
+                document.getElementById('user-role').value = user.role;
+            }
+            openModal(userModal);
+        }
+
+        userForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const id = document.getElementById('user-id').value;
+            const userData = {
+                name: document.getElementById('user-name').value,
+                email: document.getElementById('user-email').value,
+                role: document.getElementById('user-role').value,
+            };
+            if (id) { // Edit
+                const index = mockUsers.findIndex(u => u.id == id);
+                mockUsers[index] = { ...mockUsers[index], ...userData };
+            } else { // Add
+                mockUsers.push({ id: userIdCounter++, ...userData });
+            }
+            renderUsersPage();
+            closeModal(userModal);
+        });
+
+        function handleDeleteUser(id) {
+            const user = mockUsers.find(u => u.id == id);
+            showConfirmModal(`คุณแน่ใจหรือไม่ว่าต้องการลบพนักงาน "${user.name}"?`, () => {
+                mockUsers = mockUsers.filter(u => u.id != id);
+                renderUsersPage();
+            });
+        }
+        document.querySelectorAll('.close-user-modal-btn').forEach(b => b.addEventListener('click', () => closeModal(userModal)));
+
+
         // --- SOUND & INITIALIZATION ---
+        const logoutBtn = document.getElementById('logout-btn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                showConfirmModal('คุณต้องการออกจากระบบใช่หรือไม่?', () => {
+                    document.body.innerHTML = `
+                        <div class="flex flex-col items-center justify-center h-screen bg-gray-200">
+                            <div class="text-center bg-white p-12 rounded-lg shadow-lg">
+                                <i class="fas fa-check-circle text-green-500 text-5xl mb-4"></i>
+                                <h1 class="text-2xl font-bold text-gray-800">ออกจากระบบสำเร็จแล้ว</h1>
+                                <p class="text-gray-600 mt-2">คุณสามารถปิดหน้านี้ได้</p>
+                            </div>
+                        </div>
+                    `;
+                });
+            });
+        }
+
         document.getElementById('mute-btn').addEventListener('click', async () => {
             isMuted = !isMuted;
             if (!isMuted && !isToneStarted) {

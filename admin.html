@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>แดชบอร์ดร้านอาหาร - QR Order</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Kanit', sans-serif; }
+        .main-content::-webkit-scrollbar, .order-column-content::-webkit-scrollbar, .modal-body::-webkit-scrollbar { width: 8px; }
+        .main-content::-webkit-scrollbar-track, .order-column-content::-webkit-scrollbar-track, .modal-body::-webkit-scrollbar-track { background: #f1f1f1; }
+        .main-content::-webkit-scrollbar-thumb, .order-column-content::-webkit-scrollbar-thumb, .modal-body::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
+        @keyframes slide-in-fade { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        .new-order-card { animation: slide-in-fade 0.5s ease-out forwards; }
+        .modal-overlay { transition: opacity 0.3s ease; }
+        .modal-content { transition: transform 0.3s ease, opacity 0.3s ease; }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <div class="flex h-screen bg-gray-100">
+        <!-- Sidebar Navigation -->
+        <aside class="w-64 bg-gray-800 text-white flex-shrink-0 flex flex-col">
+            <div class="h-16 flex items-center justify-center bg-gray-900">
+                 <i class="fas fa-utensils text-2xl text-orange-500 mr-3"></i>
+                 <h1 class="text-xl font-bold">ร้านอร่อยเหาะ</h1>
+            </div>
+            <nav class="flex-1 px-2 py-4 space-y-2">
+                <a href="#dashboard" class="nav-link flex items-center px-4 py-2 rounded-md bg-gray-700"><i class="fas fa-tachometer-alt w-6"></i><span>แดชบอร์ดออเดอร์</span></a>
+                <a href="#menu" class="nav-link flex items-center px-4 py-2 rounded-md hover:bg-gray-700"><i class="fas fa-book-open w-6"></i><span>จัดการเมนู</span></a>
+                <a href="#reports" class="nav-link flex items-center px-4 py-2 rounded-md hover:bg-gray-700"><i class="fas fa-chart-line w-6"></i><span>รายงาน</span></a>
+                <a href="#settings" class="nav-link flex items-center px-4 py-2 rounded-md hover:bg-gray-700"><i class="fas fa-cog w-6"></i><span>ตั้งค่าร้าน</span></a>
+                <a href="#users" class="nav-link flex items-center px-4 py-2 rounded-md hover:bg-gray-700"><i class="fas fa-users-cog w-6"></i><span>จัดการพนักงาน</span></a>
+            </nav>
+            <div class="px-4 py-4 border-t border-gray-700">
+                 <div class="flex items-center p-2">
+                    <img class="h-10 w-10 rounded-full mr-3 object-cover" src="https://placehold.co/100x100/e2e8f0/333?text=SC" alt="User Avatar">
+                    <div>
+                        <p class="font-semibold">คุณสมชาย</p>
+                        <p class="text-xs text-gray-400">เจ้าของร้าน</p>
+                    </div>
+                </div>
+                <button class="w-full flex items-center justify-center mt-2 px-4 py-2 rounded-md text-sm text-red-300 hover:bg-red-500 hover:text-white transition-colors"><i class="fas fa-sign-out-alt w-6"></i><span>ออกจากระบบ</span></button>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <header class="bg-white shadow-sm p-4 flex justify-between items-center flex-shrink-0">
+                <h2 id="page-title" class="text-2xl font-bold text-gray-800">แดชบอร์ดออเดอร์</h2>
+                 <button id="mute-btn" class="text-gray-500 hover:text-gray-900 text-xl w-10 h-10 flex items-center justify-center rounded-full bg-gray-200"><i class="fas fa-volume-mute"></i></button>
+            </header>
+            
+            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 main-content">
+                <!-- Page: Order Dashboard -->
+                <div id="page-dashboard" class="page p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+
+                <!-- Page: Menu Management -->
+                <div id="page-menu" class="page hidden p-6"></div>
+
+                <!-- Page: Reports -->
+                <div id="page-reports" class="page hidden p-6"></div>
+
+                <!-- Page: Settings -->
+                <div id="page-settings" class="page hidden p-6"></div>
+
+                <!-- Page: User Management -->
+                <div id="page-users" class="page hidden p-6"></div>
+            </main>
+        </div>
+    </div>
+    
+    <!-- Modal for Add/Edit Menu Item -->
+    <div id="menu-item-modal" class="modal-overlay hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 opacity-0">
+        <div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-2xl transform -translate-y-full opacity-0">
+            <div class="p-6 border-b flex justify-between items-center">
+                <h3 id="modal-title" class="text-2xl font-bold">เพิ่มรายการอาหารใหม่</h3>
+                <button class="close-modal-btn text-gray-400 hover:text-gray-700">&times;</button>
+            </div>
+            <form id="menu-item-form">
+                <div class="p-6 space-y-4 max-h-[70vh] overflow-y-auto modal-body">
+                    <input type="hidden" id="menu-item-id">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label class="block text-sm font-medium">ชื่ออาหาร (ไทย)</label><input type="text" id="name_th" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required></div>
+                        <div><label class="block text-sm font-medium">ชื่ออาหาร (อังกฤษ)</label><input type="text" id="name_en" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required></div>
+                    </div>
+                    <div><label class="block text-sm font-medium">คำอธิบาย (ไทย)</label><textarea id="desc_th" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></textarea></div>
+                    <div><label class="block text-sm font-medium">คำอธิบาย (อังกฤษ)</label><textarea id="desc_en" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></textarea></div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label class="block text-sm font-medium">ราคา (บาท)</label><input type="number" id="price" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required min="0"></div>
+                        <div><label class="block text-sm font-medium">หมวดหมู่</label><select id="category" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm" required></select></div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium">URL รูปภาพ</label>
+                        <input type="text" id="image_url" placeholder="https://example.com/image.jpg" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm">
+                    </div>
+                </div>
+                <div class="p-4 bg-gray-50 flex justify-end space-x-3">
+                    <button type="button" class="close-modal-btn bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg hover:bg-gray-300">ยกเลิก</button>
+                    <button type="submit" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700">บันทึก</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Confirmation Modal -->
+    <div id="confirm-modal" class="modal-overlay hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 opacity-0">
+        <div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-sm transform -translate-y-full opacity-0">
+            <div class="p-6 text-center">
+                <i class="fas fa-exclamation-triangle text-yellow-500 text-4xl mb-4"></i>
+                <h3 id="confirm-title" class="text-lg font-bold mb-2">ยืนยันการลบ</h3>
+                <p id="confirm-text" class="text-sm text-gray-600">คุณแน่ใจหรือไม่ว่าต้องการลบรายการนี้? การกระทำนี้ไม่สามารถย้อนกลับได้</p>
+            </div>
+            <div class="p-4 bg-gray-50 flex justify-center space-x-3">
+                <button id="confirm-cancel-btn" class="bg-gray-200 text-gray-700 font-bold py-2 px-6 rounded-lg hover:bg-gray-300">ยกเลิก</button>
+                <button id="confirm-ok-btn" class="bg-red-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-red-700">ยืนยัน</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+    // --- STATE & CONFIG ---
+    const API_BASE_URL = 'http://localhost:3000'; // URL ของ API Server
+    let mockCategories = [
+        { id: 'main', name_th: 'อาหารจานหลัก' }, { id: 'appetizer', name_th: 'ของทานเล่น' },
+        { id: 'dessert', name_th: 'ของหวาน' }, { id: 'drink', name_th: 'เครื่องดื่ม' },
+    ];
+    // ข้อมูลเหล่านี้จะถูกดึงมาจาก API แทน
+    // let mockMenuItems = []; 
+    let mockUsers = [
+        { id: 1, name: 'สมชาย ใจดี', role: 'เจ้าของร้าน', email: 'somchai.j@example.com' },
+        { id: 2, name: 'สมหญิง รักงาน', role: 'พนักงาน', email: 'somyimg.r@example.com' },
+    ];
+    let orders = [];
+    let orderIdCounter = 1;
+    let isMuted = true;
+    let isToneStarted = false;
+    const synth = new Tone.Synth().toDestination();
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const pageContainer = {
+            dashboard: document.getElementById('page-dashboard'),
+            menu: document.getElementById('page-menu'),
+            reports: document.getElementById('page-reports'),
+            settings: document.getElementById('page-settings'),
+            users: document.getElementById('page-users'),
+        };
+
+        // --- GLOBAL UTILITIES ---
+        function openModal(modal) {
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modal.querySelector('.modal-content').classList.remove('-translate-y-full', 'opacity-0');
+            }, 10);
+        }
+        function closeModal(modal) {
+            modal.classList.add('opacity-0');
+            modal.querySelector('.modal-content').classList.add('-translate-y-full', 'opacity-0');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        // --- PAGE NAVIGATION ---
+        function showPage(hash) {
+            const pageName = hash.substring(1) || 'dashboard';
+            const targetId = 'page-' + pageName;
+            const targetTitle = document.querySelector(`a[href="${hash}"] span`)?.textContent || 'แดชบอร์ดออเดอร์';
+
+            Object.values(pageContainer).forEach(p => p.classList.add('hidden'));
+            document.getElementById(targetId)?.classList.remove('hidden');
+            
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('bg-gray-700'));
+            document.querySelector(`a[href="#${pageName}"]`)?.classList.add('bg-gray-700');
+            document.getElementById('page-title').textContent = targetTitle;
+
+            // Render content for the specific page
+            if (pageName === 'menu') renderMenuPage();
+            if (pageName === 'reports') renderReportsPage();
+            if (pageName === 'settings') renderSettingsPage();
+            if (pageName === 'users') renderUsersPage();
+        }
+        window.addEventListener('hashchange', () => showPage(window.location.hash));
+        
+        // --- ORDER DASHBOARD LOGIC (Simplified for this example) ---
+        function setupOrderDashboard() {
+            pageContainer.dashboard.innerHTML = `<div class="p-6 text-center text-gray-500">ส่วนแดชบอร์ดออเดอร์จะทำงานที่นี่...</div>`;
+            // The full order dashboard logic would connect to a real-time service like WebSockets
+        }
+
+        // --- MENU MANAGEMENT LOGIC (Connected to API) ---
+        async function renderMenuPage() {
+            pageContainer.menu.innerHTML = `
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-2xl font-bold">จัดการเมนูอาหาร</h3>
+                    <button id="add-menu-item-btn" class="bg-orange-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-orange-600 flex items-center"><i class="fas fa-plus mr-2"></i>เพิ่มรายการอาหาร</button>
+                </div>
+                <div class="bg-white shadow-md rounded-lg overflow-x-auto"><table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">รูปภาพ</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ชื่ออาหาร</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">หมวดหมู่</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ราคา</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">จัดการ</th></tr></thead><tbody id="menu-table-body" class="bg-white divide-y divide-gray-200"></tbody></table></div>`;
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/menu`);
+                const menuItems = await response.json();
+
+                const menuTableBody = pageContainer.menu.querySelector('#menu-table-body');
+                menuTableBody.innerHTML = '';
+                if (menuItems.length === 0) {
+                    menuTableBody.innerHTML = `<tr><td colspan="5" class="text-center p-6 text-gray-500">ยังไม่มีรายการอาหาร</td></tr>`;
+                }
+                menuItems.forEach(item => {
+                    const category = mockCategories.find(c => c.id === item.category);
+                    menuTableBody.innerHTML += `<tr>
+                        <td class="px-6 py-4"><img src="${item.image}" alt="${item.name_th}" class="w-12 h-12 rounded-md object-cover"></td>
+                        <td class="px-6 py-4"><div class="text-sm font-medium text-gray-900">${item.name_th}</div><div class="text-sm text-gray-500">${item.name_en}</div></td>
+                        <td class="px-6 py-4"><span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">${category ? category.name_th : 'ไม่มี'}</span></td>
+                        <td class="px-6 py-4 text-sm text-gray-800 font-semibold">฿${item.price.toFixed(2)}</td>
+                        <td class="px-6 py-4 text-right text-sm font-medium">
+                            <button class="edit-btn text-indigo-600 hover:text-indigo-900" data-id="${item.id}">แก้ไข</button>
+                            <button class="delete-btn text-red-600 hover:text-red-900 ml-4" data-id="${item.id}">ลบ</button>
+                        </td></tr>`;
+                });
+                // Attach event listeners
+                pageContainer.menu.querySelector('#add-menu-item-btn').addEventListener('click', () => handleEditMenuItem());
+                pageContainer.menu.querySelectorAll('.edit-btn').forEach(b => b.addEventListener('click', (e) => handleEditMenuItem(e.target.dataset.id)));
+                pageContainer.menu.querySelectorAll('.delete-btn').forEach(b => b.addEventListener('click', (e) => handleDeleteMenuItem(e.target.dataset.id)));
+            } catch (error) {
+                console.error('Failed to fetch menu:', error);
+                pageContainer.menu.querySelector('#menu-table-body').innerHTML = `<tr><td colspan="5" class="text-center p-6 text-red-500">ไม่สามารถโหลดข้อมูลเมนูได้ กรุณาตรวจสอบว่า API Server ทำงานอยู่หรือไม่</td></tr>`;
+            }
+        }
+        const menuItemModal = document.getElementById('menu-item-modal');
+        const menuItemForm = document.getElementById('menu-item-form');
+        const categorySelect = document.getElementById('category');
+        
+        async function handleEditMenuItem(id = null) {
+            menuItemForm.reset();
+            document.getElementById('menu-item-id').value = '';
+            
+            let item = null;
+            if (id) {
+                // Fetch the specific item from API to ensure we have the latest data
+                const response = await fetch(`${API_BASE_URL}/api/menu`);
+                const menuItems = await response.json();
+                item = menuItems.find(i => i.id == id);
+            }
+
+            document.getElementById('modal-title').textContent = item ? 'แก้ไขรายการอาหาร' : 'เพิ่มรายการอาหารใหม่';
+            if (item) {
+                document.getElementById('menu-item-id').value = item.id;
+                document.getElementById('name_th').value = item.name_th;
+                document.getElementById('name_en').value = item.name_en;
+                document.getElementById('desc_th').value = item.desc_th || '';
+                document.getElementById('desc_en').value = item.desc_en || '';
+                document.getElementById('price').value = item.price;
+                document.getElementById('category').value = item.category;
+                document.getElementById('image_url').value = item.image;
+            }
+            openModal(menuItemModal);
+        }
+
+        menuItemForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('menu-item-id').value;
+            const newItemData = {
+                category: document.getElementById('category').value,
+                name_th: document.getElementById('name_th').value,
+                name_en: document.getElementById('name_en').value,
+                desc_th: document.getElementById('desc_th').value,
+                desc_en: document.getElementById('desc_en').value,
+                price: parseFloat(document.getElementById('price').value),
+                image: document.getElementById('image_url').value || 'https://placehold.co/100x100/cccccc/ffffff?text=No+Image',
+            };
+            
+            const url = id ? `${API_BASE_URL}/api/menu/${id}` : `${API_BASE_URL}/api/menu`;
+            const method = id ? 'PUT' : 'POST';
+
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newItemData)
+                });
+                if (!response.ok) throw new Error('Failed to save item');
+                
+                await renderMenuPage();
+                closeModal(menuItemModal);
+            } catch (error) {
+                console.error('Error saving menu item:', error);
+                alert('ไม่สามารถบันทึกข้อมูลได้');
+            }
+        });
+
+        async function handleDeleteMenuItem(id) {
+            showConfirmModal(`คุณแน่ใจหรือไม่ว่าต้องการลบรายการนี้?`, async () => {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/menu/${id}`, { method: 'DELETE' });
+                    if (!response.ok) throw new Error('Failed to delete item');
+                    await renderMenuPage();
+                } catch (error) {
+                    console.error('Error deleting menu item:', error);
+                    alert('ไม่สามารถลบข้อมูลได้');
+                }
+            });
+        }
+        categorySelect.innerHTML = mockCategories.map(c => `<option value="${c.id}">${c.name_th}</option>`).join('');
+        document.querySelectorAll('.close-modal-btn').forEach(b => b.addEventListener('click', () => closeModal(menuItemModal)));
+
+        // --- CONFIRMATION MODAL ---
+        const confirmModal = document.getElementById('confirm-modal');
+        function showConfirmModal(text, onConfirm) {
+            confirmModal.querySelector('#confirm-text').textContent = text;
+            openModal(confirmModal);
+            const confirmOkBtn = document.getElementById('confirm-ok-btn');
+            const newOkBtn = confirmOkBtn.cloneNode(true);
+            confirmOkBtn.parentNode.replaceChild(newOkBtn, confirmOkBtn);
+            newOkBtn.addEventListener('click', () => {
+                onConfirm();
+                closeModal(confirmModal);
+            });
+        }
+        document.getElementById('confirm-cancel-btn').addEventListener('click', () => closeModal(confirmModal));
+
+        // --- REPORTS, SETTINGS, USERS PAGE (Static for now) ---
+        function renderReportsPage() { pageContainer.reports.innerHTML = `<div class="p-6">หน้ารายงาน...</div>`; }
+        function renderSettingsPage() { pageContainer.settings.innerHTML = `<div class="p-6">หน้าตั้งค่าร้าน...</div>`; }
+        function renderUsersPage() { pageContainer.users.innerHTML = `<div class="p-6">หน้าจัดการพนักงาน...</div>`; }
+
+        // --- SOUND & INITIALIZATION ---
+        document.getElementById('mute-btn').addEventListener('click', async () => {
+            isMuted = !isMuted;
+            if (!isMuted && !isToneStarted) {
+                try { await Tone.start(); isToneStarted = true; } catch (e) { console.error(e); isMuted = true; }
+            }
+            const icon = document.getElementById('mute-btn').querySelector('i');
+            icon.className = `fas ${isMuted ? 'fa-volume-mute' : 'fa-volume-up'}`;
+        });
+        
+        // Initial Load
+        setupOrderDashboard();
+        showPage(window.location.hash || '#dashboard');
+    });
+    </script>
+</body>
+</html>

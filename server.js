@@ -17,8 +17,6 @@ const db = admin.firestore();
 const menuCollection = db.collection('menuItems');
 const ordersCollection = db.collection('orders');
 
-// (ส่วนของ newMenuData และ seedDatabase เหมือนเดิม ไม่ได้แสดงเพื่อความกระชับ)
-
 // 3. Initialize Express App
 const app = express();
 const PORT = 3000;
@@ -29,7 +27,7 @@ app.use(bodyParser.json());
 
 // --- API Routes ---
 
-// (Endpoints สำหรับ /api/menu ทั้งหมดเหมือนเดิม)
+// Menu Endpoints (CRUD)
 app.get('/api/menu', async (req, res) => {
     try {
         const snapshot = await menuCollection.get();
@@ -57,16 +55,13 @@ app.delete('/api/menu/:id', async (req, res) => {
     } catch (error) { res.status(500).json({ message: "Something went wrong" }); }
 });
 
-
-// POST /api/orders - รับออเดอร์ใหม่จากลูกค้า
+// Order Endpoints
 app.post('/api/orders', async (req, res) => {
     try {
         const orderData = req.body;
         orderData.serverTimestamp = admin.firestore.FieldValue.serverTimestamp();
-        
         const docRef = await ordersCollection.add(orderData);
         console.log('New order received and saved with ID:', docRef.id);
-        
         res.status(201).json({ success: true, orderId: docRef.id });
     } catch (error) {
         console.error("Error saving order: ", error);
@@ -74,20 +69,15 @@ app.post('/api/orders', async (req, res) => {
     }
 });
 
-// ** Endpoint ใหม่สำหรับอัปเดตสถานะออเดอร์ **
-// PUT /api/orders/:id/status
 app.put('/api/orders/:id/status', async (req, res) => {
     try {
         const orderId = req.params.id;
-        const { status } = req.body; // รับ status ใหม่จาก body
-
+        const { status } = req.body;
         if (!status) {
             return res.status(400).json({ message: 'New status is required' });
         }
-
         const orderDoc = ordersCollection.doc(orderId);
         await orderDoc.update({ status: status });
-
         console.log(`Order ${orderId} status updated to ${status}`);
         res.json({ success: true, message: `Order status updated to ${status}` });
     } catch (error) {
@@ -96,10 +86,91 @@ app.put('/api/orders/:id/status', async (req, res) => {
     }
 });
 
+// New Endpoint to clear all completed orders
+app.post('/api/orders/clear-completed', async (req, res) => {
+    try {
+        const snapshot = await ordersCollection.where('status', '==', 'completed').get();
+        if (snapshot.empty) {
+            return res.status(200).json({ success: true, message: 'No completed orders to clear.' });
+        }
+
+        const batch = db.batch();
+        snapshot.docs.forEach(doc => {
+            batch.delete(doc.ref);
+        });
+
+        await batch.commit();
+        console.log(`Cleared ${snapshot.size} completed orders.`);
+        res.status(200).json({ success: true, message: `Cleared ${snapshot.size} orders.` });
+    } catch (error) {
+        console.error("Error clearing completed orders:", error);
+        res.status(500).json({ success: false, message: "Failed to clear completed orders." });
+    }
+});
+
+// ** Modified Endpoint for Reports **
+app.get('/api/reports', async (req, res) => {
+    try {
+        const { startDate, endDate } = req.query;
+        if (!startDate || !endDate) {
+            return res.status(400).json({ message: 'Start date and end date are required.' });
+        }
+
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+
+        // Simpler query: Get ALL completed orders
+        const ordersSnapshot = await ordersCollection
+            .where('status', '==', 'completed')
+            .get();
+
+        let totalSales = 0;
+        let orderCount = 0;
+        const dailySales = {};
+
+        // Filter by date IN THE CODE, not in the query
+        ordersSnapshot.forEach(doc => {
+            const order = doc.data();
+            if (order.serverTimestamp) {
+                const orderDate = order.serverTimestamp.toDate();
+                if (orderDate >= start && orderDate <= end) {
+                    totalSales += order.total;
+                    orderCount++;
+                    
+                    const orderDateString = orderDate.toISOString().split('T')[0]; // Get yyyy-MM-dd
+                    if (dailySales[orderDateString]) {
+                        dailySales[orderDateString] += order.total;
+                    } else {
+                        dailySales[orderDateString] = order.total;
+                    }
+                }
+            }
+        });
+
+        const chartLabels = Object.keys(dailySales).sort();
+        const chartData = chartLabels.map(label => dailySales[label]);
+
+        res.json({
+            summary: {
+                totalSales,
+                orderCount,
+                avgOrderValue: orderCount > 0 ? totalSales / orderCount : 0,
+            },
+            chart: {
+                labels: chartLabels,
+                data: chartData,
+            }
+        });
+
+    } catch (error) {
+        console.error("Error fetching report data:", error);
+        res.status(500).json({ message: "Failed to fetch report data." });
+    }
+});
+
 
 // 5. Start the server
 app.listen(PORT, () => {
     console.log(`API Server is running on http://localhost:${PORT}`);
     console.log('Connected to Firebase Firestore');
-    // seedDatabase().catch(console.error); // ปิดการ seed หลังจากใช้งานครั้งแรกแล้ว
 });

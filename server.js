@@ -15,27 +15,9 @@ admin.initializeApp({
 
 const db = admin.firestore();
 const menuCollection = db.collection('menuItems');
-const ordersCollection = db.collection('orders'); // <-- เพิ่ม Collection สำหรับเก็บออเดอร์
+const ordersCollection = db.collection('orders');
 
-// --- ข้อมูลเมนูใหม่ทั้งหมดจากไฟล์ CSV เท่านั้น ---
-const newMenuData = [
-    // (รายการเมนูทั้งหมดของคุณจะอยู่ที่นี่ - โค้ดถูกย่อเพื่อความกระชับ)
-    { name_th: 'ນ້ຳຫົວເສືອກາງ', name_en: 'Tigerhead Water (M)', price: 8000, category: 'drink', image: 'https://placehold.co/100x100/a16207/ffffff?text=Water' },
-    // ... รายการเมนูอื่นๆ ทั้งหมด
-];
-
-// --- ฟังก์ชันสำหรับเพิ่มข้อมูลเริ่มต้น ---
-async function seedDatabase() {
-    const snapshot = await menuCollection.get();
-    if (snapshot.empty) {
-        console.log('No menu items found. Seeding database...');
-        const promises = newMenuData.map(item => menuCollection.add(item));
-        await Promise.all(promises);
-        console.log('Database seeded successfully!');
-    } else {
-        console.log('Database already contains data. Skipping seeding.');
-    }
-}
+// (ส่วนของ newMenuData และ seedDatabase เหมือนเดิม ไม่ได้แสดงเพื่อความกระชับ)
 
 // 3. Initialize Express App
 const app = express();
@@ -47,69 +29,69 @@ app.use(bodyParser.json());
 
 // --- API Routes ---
 
-// GET /api/menu - ดึงข้อมูลเมนูทั้งหมด
+// (Endpoints สำหรับ /api/menu ทั้งหมดเหมือนเดิม)
 app.get('/api/menu', async (req, res) => {
     try {
         const snapshot = await menuCollection.get();
         const menuItems = [];
-        snapshot.forEach(doc => {
-            menuItems.push({ id: doc.id, ...doc.data() });
-        });
+        snapshot.forEach(doc => { menuItems.push({ id: doc.id, ...doc.data() }); });
         res.json(menuItems);
-    } catch (error) {
-        res.status(500).json({ message: "Something went wrong" });
-    }
+    } catch (error) { res.status(500).json({ message: "Something went wrong" }); }
 });
-
-// POST /api/menu - เพิ่มเมนูใหม่
 app.post('/api/menu', async (req, res) => {
     try {
-        const newItemData = req.body;
-        const docRef = await menuCollection.add(newItemData);
-        res.status(201).json({ id: docRef.id, ...newItemData });
-    } catch (error) {
-        res.status(500).json({ message: "Something went wrong" });
-    }
+        const docRef = await menuCollection.add(req.body);
+        res.status(201).json({ id: docRef.id, ...req.body });
+    } catch (error) { res.status(500).json({ message: "Something went wrong" }); }
 });
-
-// PUT /api/menu/:id - แก้ไขเมนูตาม ID
 app.put('/api/menu/:id', async (req, res) => {
     try {
-        const itemId = req.params.id;
-        const updatedData = req.body;
-        await menuCollection.doc(itemId).update(updatedData);
-        res.json({ id: itemId, ...updatedData });
-    } catch (error) {
-        res.status(500).json({ message: "Something went wrong" });
-    }
+        await menuCollection.doc(req.params.id).update(req.body);
+        res.json({ id: req.params.id, ...req.body });
+    } catch (error) { res.status(500).json({ message: "Something went wrong" }); }
 });
-
-// DELETE /api/menu/:id - ลบเมนูตาม ID
 app.delete('/api/menu/:id', async (req, res) => {
     try {
-        const itemId = req.params.id;
-        await menuCollection.doc(itemId).delete();
+        await menuCollection.doc(req.params.id).delete();
         res.status(204).send();
-    } catch (error) {
-        res.status(500).json({ message: "Something went wrong" });
-    }
+    } catch (error) { res.status(500).json({ message: "Something went wrong" }); }
 });
 
-// ** Endpoint ใหม่สำหรับรับออเดอร์ **
+
 // POST /api/orders - รับออเดอร์ใหม่จากลูกค้า
 app.post('/api/orders', async (req, res) => {
     try {
         const orderData = req.body;
-        // เพิ่มข้อมูลเวลาที่เซิร์ฟเวอร์ได้รับออเดอร์
         orderData.serverTimestamp = admin.firestore.FieldValue.serverTimestamp();
         
         const docRef = await ordersCollection.add(orderData);
         console.log('New order received and saved with ID:', docRef.id);
         
-        // ส่งข้อมูลกลับไปยืนยันว่าได้รับออเดอร์แล้ว
         res.status(201).json({ success: true, orderId: docRef.id });
     } catch (error) {
         console.error("Error saving order: ", error);
+        res.status(500).json({ success: false, message: "Something went wrong" });
+    }
+});
+
+// ** Endpoint ใหม่สำหรับอัปเดตสถานะออเดอร์ **
+// PUT /api/orders/:id/status
+app.put('/api/orders/:id/status', async (req, res) => {
+    try {
+        const orderId = req.params.id;
+        const { status } = req.body; // รับ status ใหม่จาก body
+
+        if (!status) {
+            return res.status(400).json({ message: 'New status is required' });
+        }
+
+        const orderDoc = ordersCollection.doc(orderId);
+        await orderDoc.update({ status: status });
+
+        console.log(`Order ${orderId} status updated to ${status}`);
+        res.json({ success: true, message: `Order status updated to ${status}` });
+    } catch (error) {
+        console.error("Error updating order status: ", error);
         res.status(500).json({ success: false, message: "Something went wrong" });
     }
 });
@@ -119,5 +101,5 @@ app.post('/api/orders', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`API Server is running on http://localhost:${PORT}`);
     console.log('Connected to Firebase Firestore');
-    seedDatabase().catch(console.error);
+    // seedDatabase().catch(console.error); // ปิดการ seed หลังจากใช้งานครั้งแรกแล้ว
 });

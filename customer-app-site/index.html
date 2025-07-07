@@ -15,10 +15,6 @@
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         @keyframes cart-bounce { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
         .cart-bounce { animation: cart-bounce 0.5s ease; }
-        @keyframes slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
-        .slide-up { animation: slide-up 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards; }
-        .fade-in { animation: fadeIn 0.4s ease-in-out forwards; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -29,6 +25,15 @@
             <div class="p-4">
                 <h1 class="text-2xl font-bold text-gray-800">Win Beef Noodle X Majedo Cafe</h1>
                 <p id="table-display" class="text-sm text-gray-500">ກຳລັງໂຫລດຂໍ້ມູນໂຕະ...</p>
+            </div>
+            <!-- Search Bar -->
+            <div class="px-4 pb-3">
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3">
+                        <i class="fas fa-search text-gray-400"></i>
+                    </span>
+                    <input type="text" id="search-input" placeholder="ຄົ້ນຫາເມນູ..." class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-orange-500">
+                </div>
             </div>
             <!-- Category Tabs -->
             <nav id="category-nav" class="px-4 pb-2 overflow-x-auto whitespace-nowrap no-scrollbar border-b">
@@ -59,8 +64,8 @@
         </div>
 
         <!-- Cart Modal -->
-        <div id="cart-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-40 fade-in">
-            <div id="cart-modal-content" class="fixed bottom-0 left-0 right-0 max-w-lg mx-auto bg-gray-100 rounded-t-2xl shadow-2xl slide-up">
+        <div id="cart-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-40">
+            <div id="cart-modal-content" class="fixed bottom-0 left-0 right-0 max-w-lg mx-auto bg-gray-100 rounded-t-2xl shadow-2xl">
                 <div class="p-4 border-b bg-white rounded-t-2xl flex justify-between items-center">
                     <h2 class="text-xl font-bold text-gray-800">ລາຍການສັ່ງຊື້</h2>
                     <button id="close-cart-modal" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
@@ -94,6 +99,7 @@
         const app = document.getElementById('app');
         const loadingSpinner = document.getElementById('loading-spinner');
         const tableDisplay = document.getElementById('table-display');
+        const searchInput = document.getElementById('search-input');
         const categoryNav = document.getElementById('category-nav');
         const menuContainer = document.getElementById('menu-container');
         const cartButton = document.getElementById('cart-button');
@@ -112,6 +118,15 @@
         let menuData = [];
         let categories = [];
         let tableNumber = null;
+        let currentFilter = { categoryId: null, searchTerm: '' };
+
+        function openModal(modal) {
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal(modal) {
+            modal.classList.add('hidden');
+        }
 
         function getTableNumber() {
             const params = new URLSearchParams(window.location.search);
@@ -131,29 +146,37 @@
                 if (!response.ok) throw new Error('Network response was not ok');
                 menuData = await response.json();
                 
-                // สร้างรายการหมวดหมู่ที่ไม่ซ้ำกัน
+                const categoryOrder = ['noodle', 'main', 'others', 'drink', 'majedo_drink', 'appetizer', 'dessert'];
                 const categoryMap = new Map();
+                
+                const categoryNames = {
+                    'noodle': 'ເສັ້ນ',
+                    'main': 'ອາຫານຈານຫຼັກ',
+                    'others': 'ອື່ນໆ',
+                    'drink': 'ເຄື່ອງດື່ມ',
+                    'majedo_drink': 'ເຄື່ອງດື່ມ Majedo',
+                    'appetizer': 'ອາຫານທານຫຼິ້ນ',
+                    'dessert': 'ຂອງຫວານ',
+                };
+
                 menuData.forEach(item => {
                     if (!categoryMap.has(item.category)) {
-                        const catInfo = { id: item.category, name: item.category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) };
-                        // ตั้งชื่อภาษาลาวสำหรับหมวดหมู่ที่รู้จัก
-                        if (item.category === 'drink') catInfo.name = 'ເຄື່ອງດື່ມ';
-                        if (item.category === 'majedo_drink') catInfo.name = 'ເຄື່ອງດື່ມ Majedo';
-                        if (item.category === 'pho') catInfo.name = 'ເຝີ';
-                        if (item.category === 'noodle') catInfo.name = 'ເສັ້ນ';
-                        if (item.category === 'dessert') catInfo.name = 'ຂອງຫວານ';
-                        if (item.category === 'main') catInfo.name = 'ອາຫານຈານຫຼັກ';
-                        if (item.category === 'appetizer') catInfo.name = 'ອາຫານທານຫຼິ້ນ';
-                        if (item.category === 'others') catInfo.name = 'ອື່ນໆ';
-                        categoryMap.set(item.category, catInfo);
+                        categoryMap.set(item.category, { 
+                            id: item.category, 
+                            name: categoryNames[item.category] || item.category 
+                        });
                     }
                 });
-                categories = Array.from(categoryMap.values());
+
+                categories = categoryOrder
+                    .map(id => categoryMap.get(id))
+                    .filter(Boolean); // Filter out any undefined categories
 
                 loadingSpinner.classList.add('hidden');
                 renderCategories();
                 if (categories.length > 0) {
-                    renderMenuItems(categories[0].id);
+                    currentFilter.categoryId = categories[0].id;
+                    renderFilteredMenuItems();
                 }
             } catch (error) {
                 console.error('Failed to fetch menu:', error);
@@ -174,9 +197,28 @@
             document.querySelectorAll('.category-btn').forEach(btn => btn.addEventListener('click', handleCategoryClick));
         }
         
-        function renderMenuItems(categoryId) {
+        function renderFilteredMenuItems() {
             menuContainer.innerHTML = '';
-            const itemsToShow = menuData.filter(item => item.category === categoryId);
+            let itemsToShow = menuData;
+
+            // Filter by category
+            if (currentFilter.categoryId) {
+                itemsToShow = itemsToShow.filter(item => item.category === currentFilter.categoryId);
+            }
+
+            // Filter by search term
+            if (currentFilter.searchTerm) {
+                const term = currentFilter.searchTerm.toLowerCase();
+                itemsToShow = itemsToShow.filter(item => 
+                    item.name_th.toLowerCase().includes(term) || 
+                    item.name_en.toLowerCase().includes(term)
+                );
+            }
+
+            if (itemsToShow.length === 0) {
+                menuContainer.innerHTML = `<p class="text-center text-gray-500 mt-8">ບໍ່ພົບລາຍການທີ່ຄົ້ນຫາ</p>`;
+                return;
+            }
 
             itemsToShow.forEach(item => {
                 const itemInCart = cart.find(cartItem => cartItem.id === item.id);
@@ -246,7 +288,23 @@
             });
             event.target.classList.add('bg-orange-500', 'text-white');
             event.target.classList.remove('bg-gray-200', 'text-gray-600');
-            renderMenuItems(event.target.dataset.categoryId);
+            
+            currentFilter.categoryId = event.target.dataset.categoryId;
+            currentFilter.searchTerm = ''; // Clear search when changing category
+            searchInput.value = '';
+            renderFilteredMenuItems();
+        }
+        
+        function handleSearchInput() {
+            currentFilter.searchTerm = searchInput.value;
+            currentFilter.categoryId = null; 
+            
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.classList.remove('bg-orange-500', 'text-white');
+                btn.classList.add('bg-gray-200', 'text-gray-600');
+            });
+
+            renderFilteredMenuItems();
         }
 
         function handleAddToCart(event) {
@@ -261,7 +319,7 @@
                 cart.push({ ...item, quantity: 1 });
             }
             updateCartUI();
-            renderMenuItems(document.querySelector('.category-btn.bg-orange-500').dataset.categoryId);
+            renderFilteredMenuItems();
         }
         
         function handleQuantityChange(event) {
@@ -275,7 +333,7 @@
                     cart = cart.filter(item => item.id !== itemId);
                 }
                 updateCartUI();
-                renderMenuItems(document.querySelector('.category-btn.bg-orange-500').dataset.categoryId);
+                renderFilteredMenuItems();
             }
         }
 
@@ -307,7 +365,7 @@
                 document.getElementById('special-instructions').value = '';
                 closeModal(cartModal);
                 updateCartUI();
-                renderMenuItems(document.querySelector('.category-btn.bg-orange-500').dataset.categoryId);
+                renderFilteredMenuItems();
                 toast.classList.remove('hidden');
                 setTimeout(() => toast.classList.add('hidden'), 3000);
 
@@ -324,6 +382,7 @@
         cartButton.addEventListener('click', () => openModal(cartModal));
         closeCartModalBtn.addEventListener('click', () => closeModal(cartModal));
         checkoutButton.addEventListener('click', handleCheckout);
+        searchInput.addEventListener('input', handleSearchInput);
         cartModal.addEventListener('click', (e) => { if (e.target.id === 'cart-modal') closeModal(cartModal); });
 
         getTableNumber();

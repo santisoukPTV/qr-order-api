@@ -9,8 +9,16 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Phetsarath+OT:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
     <style>
-        body { font-family: 'Phetsarath OT', 'Kanit', sans-serif; }
+        /* ตั้งค่าฟอนต์หลักให้เป็น Phetsarath OT สำหรับทุกองค์ประกอบ และใช้ !important เพื่อบังคับใช้ */
+        body, button, input, select, textarea, h1, h2, h3, p, span, div, a { 
+            font-family: 'Phetsarath OT', 'Kanit', sans-serif !important; 
+        }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         @keyframes cart-bounce { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
@@ -22,9 +30,14 @@
     <div id="app" class="max-w-lg mx-auto bg-white min-h-screen shadow-lg">
         <!-- Header -->
         <header class="sticky top-0 bg-white shadow-md z-20">
-            <div class="p-4">
+            <div class="p-4 relative">
                 <h1 class="text-2xl font-bold text-gray-800">Win Beef Noodle X Majedo Cafe</h1>
                 <p id="table-display" class="text-sm text-gray-500">ກຳລັງໂຫລດຂໍ້ມູນໂຕະ...</p>
+                <!-- Order Status Indicator -->
+                <div id="order-status-container" class="hidden absolute top-4 right-4 text-gray-700 text-sm font-semibold px-3 py-1.5 rounded-full flex items-center gap-2 shadow-sm">
+                    <i id="order-status-icon" class="fas fa-receipt"></i>
+                    <span id="order-status-text"></span>
+                </div>
             </div>
             <!-- Search Bar -->
             <div class="px-4 pb-3">
@@ -94,9 +107,23 @@
     </div>
 
     <script>
+    // --- **สำคัญ** วาง Firebase Config ของคุณที่นี่ ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyDKXi_uN7EccJ97LznJtlTU53XNW1UMR7o",
+      authDomain: "foodcost-plus-app.firebaseapp.com",
+      databaseURL: "https://foodcost-plus-app-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "foodcost-plus-app",
+      storageBucket: "foodcost-plus-app.appspot.com",
+      messagingSenderId: "202950628731",
+      appId: "1:202950628731:web:73e5bc3b0ca769173519de"
+    };
+    
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
     document.addEventListener('DOMContentLoaded', async function() {
         const API_BASE_URL = 'https://qr-order-api.onrender.com'; // URL ของ API Server จริง
-        const app = document.getElementById('app');
         const loadingSpinner = document.getElementById('loading-spinner');
         const tableDisplay = document.getElementById('table-display');
         const searchInput = document.getElementById('search-input');
@@ -112,6 +139,9 @@
         const summaryTotal = document.getElementById('summary-total');
         const checkoutButton = document.getElementById('checkout-button');
         const toast = document.getElementById('toast');
+        const orderStatusContainer = document.getElementById('order-status-container');
+        const orderStatusIcon = document.getElementById('order-status-icon');
+        const orderStatusText = document.getElementById('order-status-text');
         const currencyFormatter = new Intl.NumberFormat('lo-LA', { style: 'currency', currency: 'LAK', minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
         let cart = [];
@@ -119,14 +149,10 @@
         let categories = [];
         let tableNumber = null;
         let currentFilter = { categoryId: null, searchTerm: '' };
+        let unsubscribeOrderStatus = null; // To stop listening to old orders
 
-        function openModal(modal) {
-            modal.classList.remove('hidden');
-        }
-
-        function closeModal(modal) {
-            modal.classList.add('hidden');
-        }
+        function openModal(modal) { modal.classList.remove('hidden'); }
+        function closeModal(modal) { modal.classList.add('hidden'); }
 
         function getTableNumber() {
             const params = new URLSearchParams(window.location.search);
@@ -170,7 +196,7 @@
 
                 categories = categoryOrder
                     .map(id => categoryMap.get(id))
-                    .filter(Boolean); // Filter out any undefined categories
+                    .filter(Boolean);
 
                 loadingSpinner.classList.add('hidden');
                 renderCategories();
@@ -201,17 +227,15 @@
             menuContainer.innerHTML = '';
             let itemsToShow = menuData;
 
-            // Filter by category
             if (currentFilter.categoryId) {
                 itemsToShow = itemsToShow.filter(item => item.category === currentFilter.categoryId);
             }
 
-            // Filter by search term
             if (currentFilter.searchTerm) {
                 const term = currentFilter.searchTerm.toLowerCase();
                 itemsToShow = itemsToShow.filter(item => 
                     item.name_th.toLowerCase().includes(term) || 
-                    item.name_en.toLowerCase().includes(term)
+                    (item.name_en && item.name_en.toLowerCase().includes(term))
                 );
             }
 
@@ -290,7 +314,7 @@
             event.target.classList.remove('bg-gray-200', 'text-gray-600');
             
             currentFilter.categoryId = event.target.dataset.categoryId;
-            currentFilter.searchTerm = ''; // Clear search when changing category
+            currentFilter.searchTerm = '';
             searchInput.value = '';
             renderFilteredMenuItems();
         }
@@ -339,10 +363,8 @@
 
         async function handleCheckout() {
             if (cart.length === 0 || !tableNumber) return;
-
             checkoutButton.disabled = true;
             checkoutButton.innerHTML = `<i class="fas fa-spinner fa-spin"></i>&nbsp; ກໍາລັງສົ່ງ...`;
-
             const orderData = {
                 table: tableNumber,
                 items: cart.map(item => ({ id: item.id, name: item.name_th, quantity: item.quantity, price: item.price })),
@@ -351,16 +373,18 @@
                 status: 'new',
                 createdAt: new Date().toISOString()
             };
-
             try {
                 const response = await fetch(`${API_BASE_URL}/api/orders`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(orderData)
                 });
-
                 if (!response.ok) throw new Error('Failed to place order');
+                const result = await response.json();
                 
+                localStorage.setItem(`activeOrderId_table_${tableNumber}`, result.orderId);
+                listenForOrderStatus(result.orderId);
+
                 cart = [];
                 document.getElementById('special-instructions').value = '';
                 closeModal(cartModal);
@@ -368,13 +392,73 @@
                 renderFilteredMenuItems();
                 toast.classList.remove('hidden');
                 setTimeout(() => toast.classList.add('hidden'), 3000);
-
             } catch (error) {
                 console.error('Checkout error:', error);
                 alert('เกิดข้อผิดพลาดในการสั่งอาหาร กรุณาลองใหม่อีกครั้ง');
             } finally {
                  checkoutButton.disabled = false;
                  checkoutButton.innerHTML = `ຢືນຢັນການສັ່ງຊື້`;
+            }
+        }
+
+        function listenForOrderStatus(orderId) {
+            if (unsubscribeOrderStatus) {
+                unsubscribeOrderStatus();
+            }
+            unsubscribeOrderStatus = db.collection("orders").doc(orderId)
+                .onSnapshot((doc) => {
+                    if (doc.exists) {
+                        const order = doc.data();
+                        updateStatusIndicator(order.status);
+                    } else {
+                        clearActiveOrder();
+                    }
+                }, (error) => {
+                    console.error("Error listening to order status:", error);
+                    clearActiveOrder();
+                });
+        }
+
+        function updateStatusIndicator(status) {
+            const statusMap = {
+                'new': { text: 'ກຳລັງດຳເນີນການ', icon: 'fa-receipt', color: 'bg-gray-200' },
+                'cooking': { text: 'ກຳລັງແຕ່ງກິນ', icon: 'fa-fire-burner', color: 'bg-yellow-200' },
+                'ready': { text: 'ພ້ອມເສີບ', icon: 'fa-bell', color: 'bg-blue-200' },
+                'completed': { text: 'ສຳເລັດແລ້ວ', icon: 'fa-check-circle', color: 'bg-green-200' },
+                'cancelled': { text: 'ຍົກເລີກແລ້ວ', icon: 'fa-times-circle', color: 'bg-red-200' }
+            };
+
+            const currentStatus = statusMap[status];
+            if (currentStatus) {
+                orderStatusContainer.className = `absolute top-4 right-4 text-gray-700 text-sm font-semibold px-3 py-1.5 rounded-full flex items-center gap-2 shadow-sm ${currentStatus.color}`;
+                orderStatusIcon.className = `fas ${currentStatus.icon}`;
+                orderStatusText.textContent = currentStatus.text;
+                orderStatusContainer.classList.remove('hidden');
+
+                if (status === 'completed' || status === 'cancelled') {
+                    setTimeout(clearActiveOrder, 10000);
+                }
+            } else {
+                clearActiveOrder();
+            }
+        }
+        
+        function clearActiveOrder() {
+            if (unsubscribeOrderStatus) {
+                unsubscribeOrderStatus();
+                unsubscribeOrderStatus = null;
+            }
+            if(tableNumber) {
+                localStorage.removeItem(`activeOrderId_table_${tableNumber}`);
+            }
+            orderStatusContainer.classList.add('hidden');
+        }
+
+        function checkActiveOrder() {
+            if (!tableNumber) return;
+            const activeOrderId = localStorage.getItem(`activeOrderId_table_${tableNumber}`);
+            if (activeOrderId) {
+                listenForOrderStatus(activeOrderId);
             }
         }
         
@@ -387,6 +471,7 @@
 
         getTableNumber();
         fetchMenu();
+        checkActiveOrder();
     });
     </script>
 </body>

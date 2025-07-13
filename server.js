@@ -23,7 +23,7 @@ const PORT = 3000;
 
 // 4. Use Middlewares
 app.use(cors());
-app.use(bodyParser.json());
+app.use(bodyParser.json({ limit: '10mb' })); // Increase limit for batch uploads
 
 // --- API Routes ---
 
@@ -54,6 +54,41 @@ app.delete('/api/menu/:id', async (req, res) => {
         res.status(204).send();
     } catch (error) { res.status(500).json({ message: "Something went wrong" }); }
 });
+
+// ** New Endpoint for Batch Menu Upload **
+app.post('/api/menu/batch-upload', async (req, res) => {
+    const newItems = req.body;
+    if (!Array.isArray(newItems) || newItems.length === 0) {
+        return res.status(400).json({ message: 'Invalid menu data provided.' });
+    }
+
+    try {
+        // Step 1: Delete all existing documents in the collection
+        const existingSnapshot = await menuCollection.get();
+        const deleteBatch = db.batch();
+        existingSnapshot.docs.forEach(doc => {
+            deleteBatch.delete(doc.ref);
+        });
+        await deleteBatch.commit();
+        console.log(`Deleted ${existingSnapshot.size} existing menu items.`);
+
+        // Step 2: Add new documents
+        const addBatch = db.batch();
+        newItems.forEach(item => {
+            const docRef = menuCollection.doc(); // Let Firestore auto-generate ID
+            addBatch.set(docRef, item);
+        });
+        await addBatch.commit();
+        console.log(`Added ${newItems.length} new menu items.`);
+
+        res.status(201).json({ success: true, message: `Successfully imported ${newItems.length} menu items.` });
+
+    } catch (error) {
+        console.error("Error during batch menu upload:", error);
+        res.status(500).json({ success: false, message: "Failed to import menu items." });
+    }
+});
+
 
 // Order Endpoints
 app.post('/api/orders', async (req, res) => {

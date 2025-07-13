@@ -11,6 +11,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Phetsarath+OT:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -106,7 +108,6 @@
             </form>
         </div>
     </template>
-
     <template id="user-modal-template">
         <div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-lg transform -translate-y-full opacity-0">
             <div class="p-6 border-b flex justify-between items-center">
@@ -127,7 +128,6 @@
             </form>
         </div>
     </template>
-    
     <template id="confirm-modal-template">
          <div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-sm transform -translate-y-full opacity-0">
             <div class="p-6 text-center">
@@ -254,9 +254,10 @@
                 <div id="col-new" class="bg-white rounded-lg shadow-sm flex flex-col h-[85vh]"><div class="p-4 border-b rounded-t-lg bg-red-100"><h2 class="text-lg font-bold text-red-700 flex items-center"><i class="fas fa-receipt mr-2"></i>ออเดอร์ใหม่ (<span class="order-count">0</span>)</h2></div><div class="order-column-content flex-1 p-4 space-y-4 overflow-y-auto"></div></div>
                 <div id="col-cooking" class="bg-white rounded-lg shadow-sm flex flex-col h-[85vh]"><div class="p-4 border-b rounded-t-lg bg-yellow-100"><h2 class="text-lg font-bold text-yellow-700 flex items-center"><i class="fas fa-fire-burner mr-2"></i>กำลังทำ (<span class="order-count">0</span>)</h2></div><div class="order-column-content flex-1 p-4 space-y-4 overflow-y-auto"></div></div>
                 <div id="col-ready" class="bg-white rounded-lg shadow-sm flex flex-col h-[85vh]"><div class="p-4 border-b rounded-t-lg bg-blue-100"><h2 class="text-lg font-bold text-blue-700 flex items-center"><i class="fas fa-bell-concierge mr-2"></i>พร้อมเสิร์ฟ (<span class="order-count">0</span>)</h2></div><div class="order-column-content flex-1 p-4 space-y-4 overflow-y-auto"></div></div>
-                <div id="col-completed" class="bg-white rounded-lg shadow-sm flex flex-col h-[85vh]"><div class="p-4 border-b rounded-t-lg bg-green-100"><h2 class="text-lg font-bold text-green-700 flex items-center"><i class="fas fa-check-circle mr-2"></i>เสร็จสิ้น (<span class="order-count">0</span>)</h2></div><div class="order-column-content flex-1 p-4 space-y-4 overflow-y-auto"></div></div>
+                <div id="col-completed" class="bg-white rounded-lg shadow-sm flex flex-col h-[85vh]"><div class="p-4 border-b rounded-t-lg bg-green-100 flex justify-between items-center"><h2 class="text-lg font-bold text-green-700 flex items-center"><i class="fas fa-check-circle mr-2"></i>เสร็จสิ้น (<span class="order-count">0</span>)</h2><button id="clear-completed-btn" class="text-xs bg-green-600 text-white font-semibold py-1 px-2 rounded-md hover:bg-green-700 disabled:bg-gray-400">ล้างทั้งหมด</button></div><div class="order-column-content flex-1 p-4 space-y-4 overflow-y-auto"></div></div>
             `;
             listenForOrders();
+            document.getElementById('clear-completed-btn').addEventListener('click', handleClearCompleted);
         }
 
         function listenForOrders() {
@@ -268,22 +269,16 @@
                     const orderData = { id: change.doc.id, ...change.doc.data() };
                     const existingOrderIndex = orders.findIndex(o => o.id === orderData.id);
 
-                    if (change.type === "added") {
-                        if (existingOrderIndex === -1) {
-                            orders.push(orderData);
-                            newOrdersDetected = true;
-                        }
+                    if (change.type === "added" && existingOrderIndex === -1) {
+                        orders.push(orderData);
+                        if (orderData.status === 'new') newOrdersDetected = true;
                     } else if (change.type === "modified") {
-                        if (existingOrderIndex > -1) {
-                            orders[existingOrderIndex] = orderData;
-                        }
+                        if (existingOrderIndex > -1) orders[existingOrderIndex] = orderData;
                     } else if (change.type === "removed") {
-                        if (existingOrderIndex > -1) {
-                            orders.splice(existingOrderIndex, 1);
-                        }
+                        if (existingOrderIndex > -1) orders.splice(existingOrderIndex, 1);
                     }
                 });
-                
+
                 orders.sort((a, b) => (b.serverTimestamp?.toMillis() || 0) - (a.serverTimestamp?.toMillis() || 0));
 
                 if (newOrdersDetected && !isMuted) {
@@ -370,10 +365,38 @@
             if (order.status === 'new' || order.status === 'cooking') {
                  cancelButtonHtml = `<button data-order-id="${order.id}" data-action="cancel" class="action-btn mt-2 w-full bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg">ยกเลิก</button>`
             }
+            
+            const instructionsHtml = order.instructions ? `<div class="text-sm text-red-600 font-semibold my-2 p-2 bg-red-50 rounded-md"><i class="fas fa-star mr-1"></i> ${order.instructions}</div>` : '';
 
             const time = order.serverTimestamp ? order.serverTimestamp.toDate().toLocaleTimeString('th-TH') : new Date(order.createdAt).toLocaleTimeString('th-TH');
-            card.innerHTML = `<div class="flex justify-between items-center mb-2"><span class="font-bold text-lg">โต๊ะ ${order.table}</span><span class="text-sm text-gray-500">${time}</span></div><div class="border-t my-2 py-2"><ul class="text-sm space-y-1">${order.items.map(i => `<li>${i.name} <span class="font-semibold">x${i.quantity}</span></li>`).join('')}</ul></div><div class="flex justify-between items-center mt-3"><span class="font-bold">ยอดรวม</span><span class="font-bold text-xl text-green-700">${currencyFormatter.format(order.total)}</span></div><div class="mt-4">${actionButtonHtml}${cancelButtonHtml}</div>`;
+            card.innerHTML = `<div class="flex justify-between items-center mb-2"><span class="font-bold text-lg">โต๊ะ ${order.table}</span><span class="text-sm text-gray-500">${time}</span></div><div class="border-t my-2 py-2"><ul class="text-sm space-y-1">${order.items.map(i => `<li>${i.name} <span class="font-semibold">x${i.quantity}</span></li>`).join('')}</ul></div>${instructionsHtml}<div class="flex justify-between items-center mt-3"><span class="font-bold">ยอดรวม</span><span class="font-bold text-xl text-green-700">${currencyFormatter.format(order.total)}</span></div><div class="mt-4">${actionButtonHtml}${cancelButtonHtml}</div>`;
             return card;
+        }
+
+        async function handleClearCompleted() {
+            const btn = document.getElementById('clear-completed-btn');
+            const completedCount = orders.filter(o => o.status === 'completed').length;
+            if (completedCount === 0) return;
+
+            showModal('confirm-modal-template', (modalWrapper) => {
+                modalWrapper.querySelector('.modal-title').textContent = 'ยืนยันการล้าง';
+                modalWrapper.querySelector('.modal-text').textContent = `คุณแน่ใจหรือไม่ว่าต้องการล้างออเดอร์ที่เสร็จสิ้นแล้วทั้งหมด ${completedCount} รายการ?`;
+                modalWrapper.querySelector('.confirm-ok-btn').addEventListener('click', async () => {
+                    btn.disabled = true;
+                    btn.textContent = 'กำลังล้าง...';
+                    try {
+                        const response = await fetch(`${API_BASE_URL}/api/orders/clear-completed`, { method: 'POST' });
+                        if (!response.ok) throw new Error('Failed to clear orders');
+                    } catch (error) {
+                        console.error("Error clearing completed orders:", error);
+                        alert('ไม่สามารถล้างออเดอร์ได้');
+                    } finally {
+                        btn.disabled = false;
+                        btn.textContent = 'ล้างทั้งหมด';
+                        modalContainer.innerHTML = '';
+                    }
+                });
+            });
         }
 
         // --- MENU MANAGEMENT LOGIC ---
@@ -381,8 +404,13 @@
             pageContainer.menu.innerHTML = `
                 <div class="flex justify-between items-center mb-6">
                     <h3 class="text-2xl font-bold">จัดการเมนูอาหาร</h3>
-                    <button id="add-menu-item-btn" class="bg-orange-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-orange-600 flex items-center"><i class="fas fa-plus mr-2"></i>เพิ่มรายการอาหาร</button>
+                    <div class="flex gap-2">
+                        <button id="import-menu-btn" class="bg-blue-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-600 flex items-center"><i class="fas fa-file-upload mr-2"></i>Import Menu</button>
+                        <button id="export-menu-btn" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 flex items-center"><i class="fas fa-file-download mr-2"></i>Export Menu</button>
+                        <button id="add-menu-item-btn" class="bg-orange-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-orange-600 flex items-center"><i class="fas fa-plus mr-2"></i>เพิ่มรายการอาหาร</button>
+                    </div>
                 </div>
+                <input type="file" id="import-file-input" class="hidden" accept=".csv">
                 <div class="bg-white shadow-md rounded-lg overflow-x-auto"><table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">รูปภาพ</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ชื่ออาหาร</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">หมวดหมู่</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ราคา</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">จัดการ</th></tr></thead><tbody id="menu-table-body" class="bg-white divide-y divide-gray-200"></tbody></table></div>`;
             
             try {
@@ -410,6 +438,9 @@
                 pageContainer.menu.querySelector('#add-menu-item-btn').addEventListener('click', () => handleEditMenuItem());
                 pageContainer.menu.querySelectorAll('.edit-btn').forEach(b => b.addEventListener('click', (e) => handleEditMenuItem(e.target.dataset.id)));
                 pageContainer.menu.querySelectorAll('.delete-btn').forEach(b => b.addEventListener('click', (e) => handleDeleteMenuItem(e.target.dataset.id)));
+                pageContainer.menu.querySelector('#export-menu-btn').addEventListener('click', handleExportMenu);
+                pageContainer.menu.querySelector('#import-menu-btn').addEventListener('click', () => document.getElementById('import-file-input').click());
+                pageContainer.menu.querySelector('#import-file-input').addEventListener('change', handleImportMenu);
             } catch (error) {
                 console.error('Failed to fetch menu:', error);
                 pageContainer.menu.querySelector('#menu-table-body').innerHTML = `<tr><td colspan="5" class="text-center p-6 text-red-500">ไม่สามารถโหลดข้อมูลเมนูได้</td></tr>`;
@@ -484,6 +515,83 @@
                 });
             });
         }
+        
+        async function handleExportMenu() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/menu`);
+                const menuItems = await response.json();
+                
+                const headers = "name_th,name_en,price,category,image,desc_th";
+                const csvContent = [
+                    headers,
+                    ...menuItems.map(item => [
+                        `"${item.name_th || ''}"`,
+                        `"${item.name_en || ''}"`,
+                        item.price || 0,
+                        item.category || '',
+                        `"${item.image || ''}"`,
+                        `"${(item.desc_th || '').replace(/"/g, '""')}"`
+                    ].join(','))
+                ].join('\n');
+
+                const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement("a");
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", `menu-export-${new Date().toISOString().split('T')[0]}.csv`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } catch (error) {
+                alert('ไม่สามารถส่งออกข้อมูลได้');
+            }
+        }
+
+        function handleImportMenu(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const text = e.target.result;
+                const rows = text.split('\n').slice(1); // Skip header
+                const newMenuItems = rows.filter(row => row.trim() !== '').map(row => {
+                    const columns = row.split(',');
+                    return {
+                        name_th: columns[0]?.replace(/"/g, '') || '',
+                        name_en: columns[1]?.replace(/"/g, '') || '',
+                        price: parseFloat(columns[2]) || 0,
+                        category: columns[3] || '',
+                        image: columns[4]?.replace(/"/g, '') || '',
+                        desc_th: columns[5]?.replace(/"/g, '') || '',
+                    };
+                });
+
+                showModal('confirm-modal-template', (modalWrapper) => {
+                    modalWrapper.querySelector('.modal-title').textContent = 'ยืนยันการนำเข้า';
+                    modalWrapper.querySelector('.modal-text').textContent = `คุณกำลังจะนำเข้า ${newMenuItems.length} รายการ และจะลบเมนูเก่าทั้งหมดทิ้ง ยืนยันหรือไม่?`;
+                    modalWrapper.querySelector('.confirm-ok-btn').addEventListener('click', async () => {
+                        try {
+                            const response = await fetch(`${API_BASE_URL}/api/menu/batch-upload`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(newMenuItems)
+                            });
+                            if (!response.ok) throw new Error('Failed to import');
+                            alert('นำเข้าเมนูสำเร็จ!');
+                            renderMenuPage();
+                        } catch (error) {
+                            alert('เกิดข้อผิดพลาดในการนำเข้าเมนู');
+                        } finally {
+                            modalContainer.innerHTML = '';
+                        }
+                    });
+                });
+            };
+            reader.readAsText(file);
+            event.target.value = ''; // Reset input
+        }
 
         // --- REPORTS PAGE LOGIC ---
         function renderReportsPage() {
@@ -495,23 +603,96 @@
                         <button class="time-filter-btn px-4 py-1.5 font-semibold text-gray-600 hover:bg-gray-300 rounded-md" data-period="yesterday">เมื่อวาน</button>
                         <button class="time-filter-btn px-4 py-1.5 font-semibold text-gray-600 hover:bg-gray-300 rounded-md" data-period="this_week">สัปดาห์นี้</button>
                         <button class="time-filter-btn px-4 py-1.5 font-semibold text-gray-600 hover:bg-gray-300 rounded-md" data-period="this_month">เดือนนี้</button>
-                        <button class="time-filter-btn px-4 py-1.5 font-semibold text-gray-600 hover:bg-gray-300 rounded-md" data-period="custom">เลือกช่วงเวลา</button>
+                        <input type="text" id="custom-date-range" class="hidden" placeholder="เลือกช่วงเวลา">
                     </div>
                     <div class="flex items-center gap-2">
-                        <button class="p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600"><i class="fas fa-sync-alt"></i></button>
+                        <button id="refresh-report-btn" class="p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600"><i class="fas fa-sync-alt"></i></button>
                         <button class="px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 flex items-center gap-2">
                             <i class="fas fa-download"></i> Download สรุป
                         </button>
                     </div>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-                    <div class="bg-white p-6 rounded-lg shadow-md"><h4 class="text-gray-500">ยอดขายวันนี้</h4><p class="text-3xl font-bold mt-2">${currencyFormatter.format(3137500)}</p></div>
-                    <div class="bg-white p-6 rounded-lg shadow-md"><h4 class="text-gray-500">ออเดอร์วันนี้</h4><p class="text-3xl font-bold mt-2">85</p></div>
-                    <div class="bg-white p-6 rounded-lg shadow-md"><h4 class="text-gray-500">ลูกค้าใหม่</h4><p class="text-3xl font-bold mt-2">12</p></div>
-                    <div class="bg-white p-6 rounded-lg shadow-md"><h4 class="text-gray-500">ยอดขายเฉลี่ย/โต๊ะ</h4><p class="text-3xl font-bold mt-2">${currencyFormatter.format(112687)}</p></div>
+                <div id="report-summary-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                    <div class="bg-white p-6 rounded-lg shadow-md"><h4 class="text-gray-500">ยอดขายรวม</h4><p id="report-total-sales" class="text-3xl font-bold mt-2"></p></div>
+                    <div class="bg-white p-6 rounded-lg shadow-md"><h4 class="text-gray-500">จำนวนออเดอร์</h4><p id="report-order-count" class="text-3xl font-bold mt-2"></p></div>
+                    <div class="bg-white p-6 rounded-lg shadow-md"><h4 class="text-gray-500">ยอดขายเฉลี่ย/ออเดอร์</h4><p id="report-avg-sales" class="text-3xl font-bold mt-2"></p></div>
                 </div>
                 <div class="bg-white p-6 rounded-lg shadow-md"><canvas id="salesChart"></canvas></div>`;
             
+            let salesChartInstance = null;
+            const datePicker = flatpickr("#custom-date-range", {
+                mode: "range",
+                dateFormat: "Y-m-d",
+                onChange: function(selectedDates) {
+                    if (selectedDates.length === 2) {
+                        fetchAndRenderReport('custom', selectedDates[0], selectedDates[1]);
+                    }
+                }
+            });
+
+            async function fetchAndRenderReport(period, customStart, customEnd) {
+                const summaryCards = document.getElementById('report-summary-cards');
+                summaryCards.innerHTML = `<div class="col-span-4 text-center p-8"><i class="fas fa-spinner fa-spin text-3xl text-orange-500"></i></div>`;
+                
+                let startDate, endDate;
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                switch(period) {
+                    case 'yesterday':
+                        endDate = new Date(today);
+                        startDate = new Date(today);
+                        startDate.setDate(today.getDate() - 1);
+                        endDate.setDate(today.getDate() - 1);
+                        break;
+                    case 'this_week':
+                        startDate = new Date(today);
+                        startDate.setDate(today.getDate() - today.getDay() + (today.getDay() === 0 ? -6 : 1) ); // Week starts on Monday
+                        endDate = new Date();
+                        break;
+                    case 'this_month':
+                        startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+                        endDate = new Date();
+                        break;
+                    case 'custom':
+                        startDate = customStart;
+                        endDate = customEnd;
+                        break;
+                    default: // today
+                        startDate = today;
+                        endDate = new Date();
+                }
+
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/reports?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`);
+                    if (!response.ok) throw new Error('Failed to fetch report');
+                    const reportData = await response.json();
+                    
+                    document.getElementById('report-summary-cards').innerHTML = `
+                        <div class="bg-white p-6 rounded-lg shadow-md"><h4 class="text-gray-500">ยอดขายรวม</h4><p id="report-total-sales" class="text-3xl font-bold mt-2">${currencyFormatter.format(reportData.summary.totalSales)}</p></div>
+                        <div class="bg-white p-6 rounded-lg shadow-md"><h4 class="text-gray-500">จำนวนออเดอร์</h4><p id="report-order-count" class="text-3xl font-bold mt-2">${reportData.summary.orderCount}</p></div>
+                        <div class="bg-white p-6 rounded-lg shadow-md"><h4 class="text-gray-500">ยอดขายเฉลี่ย/ออเดอร์</h4><p id="report-avg-sales" class="text-3xl font-bold mt-2">${currencyFormatter.format(reportData.summary.avgOrderValue)}</p></div>
+                        <div class="bg-white p-6 rounded-lg shadow-md"><h4 class="text-gray-500">Placeholder</h4><p class="text-3xl font-bold mt-2">N/A</p></div>
+                    `;
+
+                    if (salesChartInstance) {
+                        salesChartInstance.destroy();
+                    }
+                    salesChartInstance = new Chart(document.getElementById('salesChart'), {
+                        type: 'bar',
+                        data: {
+                            labels: reportData.chart.labels,
+                            datasets: [{ label: 'ยอดขาย (กีบ)', data: reportData.chart.data, backgroundColor: 'rgba(249, 115, 22, 0.6)', borderColor: 'rgba(249, 115, 22, 1)', borderWidth: 1 }]
+                        },
+                        options: { scales: { y: { beginAtZero: true, ticks: { callback: value => currencyFormatter.format(value) } } }, responsive: true }
+                    });
+
+                } catch (error) {
+                    console.error("Report error:", error);
+                    document.getElementById('report-summary-cards').innerHTML = `<div class="col-span-4 text-center p-8 bg-red-100 text-red-800 rounded-lg">ไม่สามารถโหลดข้อมูลรายงานได้</div>`;
+                }
+            }
+
             const timeFilterBtns = pageContainer.reports.querySelectorAll('.time-filter-btn');
             timeFilterBtns.forEach(btn => {
                 btn.addEventListener('click', () => {
@@ -521,17 +702,22 @@
                     });
                     btn.classList.add('bg-gray-800', 'text-white');
                     btn.classList.remove('text-gray-600', 'hover:bg-gray-300');
+
+                    const period = btn.dataset.period;
+                    if (period === 'custom') {
+                        datePicker.open();
+                    } else {
+                        fetchAndRenderReport(period);
+                    }
                 });
             });
 
-            new Chart(document.getElementById('salesChart'), {
-                type: 'bar',
-                data: {
-                    labels: ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัส', 'ศุกร์', 'เสาร์', 'อาทิตย์'],
-                    datasets: [{ label: 'ยอดขาย (กีบ)', data: [2125000, 2300000, 2762500, 1950000, 3350000, 4625000, 4050000], backgroundColor: 'rgba(249, 115, 22, 0.6)', borderColor: 'rgba(249, 115, 22, 1)', borderWidth: 1 }]
-                },
-                options: { scales: { y: { beginAtZero: true, ticks: { callback: value => currencyFormatter.format(value) } } }, responsive: true }
+            document.getElementById('refresh-report-btn').addEventListener('click', () => {
+                const activeBtn = document.querySelector('.time-filter-btn.bg-gray-800');
+                fetchAndRenderReport(activeBtn.dataset.period);
             });
+
+            fetchAndRenderReport('today');
         }
 
         // --- SETTINGS PAGE LOGIC ---
@@ -543,7 +729,6 @@
                         <div><label class="block text-sm font-medium text-gray-700">ชื่อร้าน</label><input type="text" id="setting-store-name" value="Win Beef Noodle X Majedo Cafe" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
                         <div><label class="block text-sm font-medium text-gray-700">สกุลเงิน</label><input type="text" value="LAK" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100" readonly></div>
                         <div><label class="block text-sm font-medium text-gray-700">จำนวนโต๊ะ</label><input type="number" value="20" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
-                        <div><label class="block text-sm font-medium text-gray-700">อัตราภาษี (%)</label><input type="number" value="7" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm"></div>
                     </div>
                     <div class="mt-6 text-right"><button id="save-settings-btn" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700">บันทึกการเปลี่ยนแปลง</button></div>
                 </div>`;
@@ -633,7 +818,22 @@
             muteBtn.querySelector('i').className = `fas ${isMuted ? 'fa-volume-mute' : 'fa-volume-up'}`;
         });
         
-        window.addEventListener('hashchange', () => showPage(window.location.hash));
+        document.getElementById('logout-btn').addEventListener('click', (e) => {
+            e.preventDefault();
+            showModal('confirm-modal-template', (modalWrapper) => {
+                modalWrapper.querySelector('.modal-title').textContent = 'ยืนยันการออกจากระบบ';
+                modalWrapper.querySelector('.modal-text').textContent = 'คุณต้องการออกจากระบบใช่หรือไม่?';
+                modalWrapper.querySelector('.confirm-ok-btn').addEventListener('click', () => {
+                     document.body.innerHTML = `<div class="flex flex-col items-center justify-center h-screen bg-gray-200"><div class="text-center bg-white p-12 rounded-lg shadow-lg"><i class="fas fa-check-circle text-green-500 text-5xl mb-4"></i><h1 class="text-2xl font-bold text-gray-800">ออกจากระบบสำเร็จแล้ว</h1><p class="text-gray-600 mt-2">คุณสามารถปิดหน้านี้ได้</p></div></div>`;
+                });
+            });
+        });
+
+        window.addEventListener('hashchange', () => {
+            if (isToneStarted) {
+                showPage(window.location.hash);
+            }
+        });
     });
     </script>
 </body>

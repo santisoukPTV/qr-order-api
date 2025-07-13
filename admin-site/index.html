@@ -174,10 +174,13 @@
     // --- STATE & CONFIG ---
     const API_BASE_URL = 'https://qr-order-api.onrender.com';
     let mockCategories = [
-        { id: 'drink', name_th: 'เครื่องดื่ม' }, { id: 'majedo_drink', name_th: 'เครื่องดื่ม Majedo' },
-        { id: 'noodle', name_th: 'เส้น' }, { id: 'dessert', name_th: 'ของหวาน' },
-        { id: 'main', name_th: 'อาหารจานหลัก' }, { id: 'appetizer', name_th: 'อาหารทานเล่น' },
-        { id: 'others', name_th: 'อื่นๆ' },
+        { id: 'drink', name_th: 'ເຄື່ອງດື່ມ' },
+        { id: 'majedo_drink', name_th: 'ເຄື່ອງດື່ມ Majedo' },
+        { id: 'noodle', name_th: 'ເສັ້ນ' },
+        { id: 'dessert', name_th: 'ຂອງຫວານ' },
+        { id: 'main', name_th: 'ອາຫານຈານຫຼັກ' },
+        { id: 'appetizer', name_th: 'ອາຫານທານຫຼິ້ນ' },
+        { id: 'others', name_th: 'ອື່ນໆ' },
     ];
     let mockUsers = [
         { id: 1, name: 'สมชาย ใจดี', role: 'เจ้าของร้าน', email: 'somchai.j@example.com' },
@@ -358,7 +361,7 @@
             } else if (order.status === 'cooking') {
                 actionButtonHtml = `<button data-order-id="${order.id}" data-action="ready" class="action-btn w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">พร้อมเสิร์ฟ</button>`;
             } else if (order.status === 'ready') {
-                actionButtonHtml = `<button data-order-id="${order.id}" data-action="complete" class="action-btn w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">เสิร์ฟแล้ว</button>`;
+                actionButtonHtml = `<button data-order-id="${order.id}" data-action="complete" class="action-btn w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg">เสิร์ฟแล้ว</button>`;
             }
 
             let cancelButtonHtml = '';
@@ -402,8 +405,14 @@
         // --- MENU MANAGEMENT LOGIC ---
         async function renderMenuPage() {
             pageContainer.menu.innerHTML = `
-                <div class="flex justify-between items-center mb-6">
+                <div class="flex flex-wrap justify-between items-center mb-6 gap-4">
                     <h3 class="text-2xl font-bold">จัดการเมนูอาหาร</h3>
+                    <div class="relative flex-grow max-w-xs">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3">
+                            <i class="fas fa-search text-gray-400"></i>
+                        </span>
+                        <input type="text" id="admin-menu-search" placeholder="ຄົ້ນຫາເມນູ..." class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-orange-500">
+                    </div>
                     <div class="flex gap-2">
                         <button id="import-menu-btn" class="bg-blue-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-600 flex items-center"><i class="fas fa-file-upload mr-2"></i>Import Menu</button>
                         <button id="export-menu-btn" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 flex items-center"><i class="fas fa-file-download mr-2"></i>Export Menu</button>
@@ -413,17 +422,16 @@
                 <input type="file" id="import-file-input" class="hidden" accept=".csv">
                 <div class="bg-white shadow-md rounded-lg overflow-x-auto"><table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">รูปภาพ</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ชื่ออาหาร</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">หมวดหมู่</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ราคา</th><th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">จัดการ</th></tr></thead><tbody id="menu-table-body" class="bg-white divide-y divide-gray-200"></tbody></table></div>`;
             
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/menu`);
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                const menuItems = await response.json();
+            let allMenuItems = [];
 
+            const renderMenuTable = (items) => {
                 const menuTableBody = pageContainer.menu.querySelector('#menu-table-body');
                 menuTableBody.innerHTML = '';
-                if (menuItems.length === 0) {
-                    menuTableBody.innerHTML = `<tr><td colspan="5" class="text-center p-6 text-gray-500">กำลังโหลดข้อมูลเมนู...</td></tr>`;
+                if (items.length === 0) {
+                    menuTableBody.innerHTML = `<tr><td colspan="5" class="text-center p-6 text-gray-500">ไม่พบรายการอาหาร</td></tr>`;
+                    return;
                 }
-                menuItems.sort((a, b) => a.name_th.localeCompare(b.name_th, 'lo')).forEach(item => {
+                items.sort((a, b) => a.name_th.localeCompare(b.name_th, 'lo')).forEach(item => {
                     const category = mockCategories.find(c => c.id === item.category);
                     menuTableBody.innerHTML += `<tr>
                         <td class="px-6 py-4"><img src="${item.image}" alt="${item.name_th}" class="w-12 h-12 rounded-md object-cover"></td>
@@ -435,12 +443,28 @@
                             <button class="delete-btn text-red-600 hover:text-red-900 ml-4" data-id="${item.id}">ลบ</button>
                         </td></tr>`;
                 });
-                pageContainer.menu.querySelector('#add-menu-item-btn').addEventListener('click', () => handleEditMenuItem());
                 pageContainer.menu.querySelectorAll('.edit-btn').forEach(b => b.addEventListener('click', (e) => handleEditMenuItem(e.target.dataset.id)));
                 pageContainer.menu.querySelectorAll('.delete-btn').forEach(b => b.addEventListener('click', (e) => handleDeleteMenuItem(e.target.dataset.id)));
+            };
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/menu`);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                allMenuItems = await response.json();
+                renderMenuTable(allMenuItems);
+                
+                pageContainer.menu.querySelector('#add-menu-item-btn').addEventListener('click', () => handleEditMenuItem());
                 pageContainer.menu.querySelector('#export-menu-btn').addEventListener('click', handleExportMenu);
                 pageContainer.menu.querySelector('#import-menu-btn').addEventListener('click', () => document.getElementById('import-file-input').click());
                 pageContainer.menu.querySelector('#import-file-input').addEventListener('change', handleImportMenu);
+                pageContainer.menu.querySelector('#admin-menu-search').addEventListener('input', (e) => {
+                    const searchTerm = e.target.value.toLowerCase();
+                    const filteredItems = allMenuItems.filter(item => 
+                        item.name_th.toLowerCase().includes(searchTerm) ||
+                        (item.name_en && item.name_en.toLowerCase().includes(searchTerm))
+                    );
+                    renderMenuTable(filteredItems);
+                });
             } catch (error) {
                 console.error('Failed to fetch menu:', error);
                 pageContainer.menu.querySelector('#menu-table-body').innerHTML = `<tr><td colspan="5" class="text-center p-6 text-red-500">ไม่สามารถโหลดข้อมูลเมนูได้</td></tr>`;
@@ -525,8 +549,8 @@
                 const csvContent = [
                     headers,
                     ...menuItems.map(item => [
-                        `"${item.name_th || ''}"`,
-                        `"${item.name_en || ''}"`,
+                        `"${(item.name_th || '').replace(/"/g, '""')}"`,
+                        `"${(item.name_en || '').replace(/"/g, '""')}"`,
                         item.price || 0,
                         item.category || '',
                         `"${item.image || ''}"`,
